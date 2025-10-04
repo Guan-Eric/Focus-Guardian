@@ -3,46 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>My Product - Join the Waitlist</title>
+    <title>Focus Guardian – Join the Waitlist</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
   </head>
   <body>
-    <div class="container">
-      <h1 class="headline">Simplify Your Daily Routine</h1>
-      <p class="subheadline">
-        Join our waitlist and be the first to experience our game-changing app.
-      </p>
+    <main class="page">
+      <section class="card">
+        <div class="logo-area">
+          <img src="assets/logo.png" alt="Focus Guardian Logo" class="logo" />
+          <h1 class="headline">Simplify Your Daily Routine</h1>
+          <p class="subheadline">
+            Join our waitlist to get early access to Focus Guardian — your
+            personal productivity companion.
+          </p>
+        </div>
 
-      <form
-        id="waitlist-form"
-        action="https://formspree.io/f/mrbylbyr"
-        method="POST"
-      >
-        <input type="text" name="name" placeholder="Your Name" required />
-        <input type="email" name="email" placeholder="Your Email" required />
-        <button type="submit">Join the Waitlist</button>
-      </form>
+        <form
+          id="waitlist-form"
+          action="https://formspree.io/f/mrbylbyr"
+          method="POST"
+          class="waitlist-form"
+        >
+          <input
+            type="text"
+            name="name"
+            placeholder="Your Name"
+            class="input"
+            required
+          />
+          <input
+            type="email"
+            name="email"
+            placeholder="Your Email"
+            class="input"
+            required
+          />
+          <button type="submit" class="button">Join the Waitlist</button>
+        </form>
 
-      <p id="success-msg" class="hidden">Thanks! You're on the waitlist 🎉</p>
-
-      <!-- Footer with Privacy Policy Link -->
-      <footer class="footer">
-        <p>
-          By joining the waitlist, you agree to our
-          <a href="/privacy-policy.html" target="_blank">Privacy Policy</a> and
-          our
-          <a href="/terms-and-conditions.html" target="_blank"
-            >Terms and Conditions</a
-          >.
+        <p id="success-msg" class="hidden success-msg">
+          🎉 Thanks! You’re officially on the waitlist.
         </p>
-      </footer>
-    </div>
+
+        <footer class="footer">
+          <p>
+            By joining the waitlist, you agree to our
+            <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>
+            and
+            <a href="/terms-and-conditions.html" target="_blank"
+              >Terms & Conditions</a
+            >.
+          </p>
+        </footer>
+      </section>
+    </main>
 
     <script src="script.js"></script>
   </body>
