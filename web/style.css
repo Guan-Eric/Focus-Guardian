@@ -116,6 +116,10 @@ html {
   font-size: 1rem;
 }
 
+.hidden {
+  display: none;
+}
+
 /* Footer */
 .footer {
   margin-top: 30px;
