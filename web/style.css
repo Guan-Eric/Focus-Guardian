@@ -1,0 +1,133 @@
+/* Reset & base */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: "Inter", sans-serif;
+  background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  animation: fadeIn 1s ease-in;
+}
+
+.container {
+  background: white;
+  padding: 50px 30px;
+  border-radius: 15px;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.15);
+  max-width: 450px;
+  width: 100%;
+  text-align: center;
+  transition: transform 0.3s;
+}
+
+.container:hover {
+  transform: translateY(-5px);
+}
+
+.headline {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #333;
+  margin-bottom: 15px;
+  animation: slideUp 0.8s ease-out;
+}
+
+.subheadline {
+  font-size: 1rem;
+  color: #555;
+  margin-bottom: 25px;
+  animation: slideUp 1s ease-out;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  margin: 10px 0;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  font-size: 1rem;
+  transition: border 0.3s;
+}
+
+input:focus {
+  border-color: #0070f3;
+  outline: none;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  background: #0070f3;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  transition: background 0.3s, transform 0.2s;
+}
+
+button:hover {
+  background: #005bb5;
+  transform: scale(1.03);
+}
+
+.hidden {
+  display: none;
+  margin-top: 15px;
+  color: green;
+  font-weight: 600;
+}
+
+.footer {
+  margin-top: 25px;
+  font-size: 0.85rem;
+  color: #777;
+}
+
+.footer a {
+  color: #0070f3;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.footer a:hover {
+  text-decoration: underline;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .container {
+    padding: 35px 20px;
+  }
+  .headline {
+    font-size: 1.5rem;
+  }
+}

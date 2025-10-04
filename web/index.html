@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Product - Join the Waitlist</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div class="container">
+      <h1 class="headline">Simplify Your Daily Routine</h1>
+      <p class="subheadline">
+        Join our waitlist and be the first to experience our game-changing app.
+      </p>
+
+      <form
+        id="waitlist-form"
+        action="https://formspree.io/f/mrbylbyr"
+        method="POST"
+      >
+        <input type="text" name="name" placeholder="Your Name" required />
+        <input type="email" name="email" placeholder="Your Email" required />
+        <button type="submit">Join the Waitlist</button>
+      </form>
+
+      <p id="success-msg" class="hidden">Thanks! You're on the waitlist 🎉</p>
+
+      <!-- Footer with Privacy Policy Link -->
+      <footer class="footer">
+        <p>
+          By joining the waitlist, you agree to our
+          <a href="/privacy-policy.html" target="_blank">Privacy Policy</a>.
+        </p>
+      </footer>
+    </div>
+
+    <script src="script.js"></script>
+  </body>
+</html>
