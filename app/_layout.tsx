@@ -1,17 +1,18 @@
+import { Stack } from 'expo-router';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import '../global.css';
-import { Slot, useRouter } from "expo-router";
-import { useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function RootLayout() {
-  const router = useRouter();
-
-  useEffect(() => {
-    (async () => {
-      const seen = await AsyncStorage.getItem("onboardingSeen");
-      if (!seen) router.replace("/(onboarding)/welcome");
-    })();
-  }, []);
-
-  return <Slot />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="how-it-works" />
+        <Stack.Screen name="notifications" />
+        <Stack.Screen name="welcome" />
+        <Stack.Screen name="paywall" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
+    </GestureHandlerRootView>
+  );
 }

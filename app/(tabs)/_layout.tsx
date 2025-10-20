@@ -1,39 +1,35 @@
-import { Tabs } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { Tabs } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function Layout() {
+export default function TabLayout() {
   return (
     <Tabs
+      initialRouteName="(home)"
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#9b5de5",
-      }}
-    >
+      }}>
       <Tabs.Screen
-        name="index"
+        name="(home)"
         options={{
-          title: "Home",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
-          ),
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => <Ionicons name="home" size={size} color={color} />,
+          animation: 'shift',
         }}
       />
       <Tabs.Screen
-        name="stats"
+        name="(stats)"
         options={{
-          title: "Stats",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="bar-chart" size={size} color={color} />
-          ),
+          title: 'Stats',
+          tabBarIcon: ({ color, size }) => <Ionicons name="bar-chart" size={size} color={color} />,
+          animation: 'shift',
         }}
       />
       <Tabs.Screen
-        name="settings"
+        name="(settings)"
         options={{
-          title: "Settings",
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings" size={size} color={color} />
-          ),
+          title: 'Settings',
+          tabBarIcon: ({ color, size }) => <Ionicons name="settings" size={size} color={color} />,
+          animation: 'shift',
         }}
       />
     </Tabs>

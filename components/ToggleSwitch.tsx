@@ -1,26 +1,162 @@
-import { Pressable, View, Animated } from "react-native";
-import { useEffect, useRef } from "react";
+import React, { useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { GestureDetector, Gesture } from 'react-native-gesture-handler';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withSpring,
+  interpolate,
+  Extrapolate,
+  interpolateColor,
+  runOnJS,
+} from 'react-native-reanimated';
 
-export default function ToggleSwitch({ value, onToggle }: { value: boolean; onToggle: () => void }) {
-  const translateX = useRef(new Animated.Value(value ? 24 : 0)).current;
+const BUTTON_WIDTH = 300;
+const BUTTON_HEIGHT = 80;
+const BUTTON_PADDING = 10;
+const SWIPEABLE_DIMENSIONS = BUTTON_HEIGHT - 2 * BUTTON_PADDING;
 
-  useEffect(() => {
-    Animated.timing(translateX, {
-      toValue: value ? 24 : 0,
-      duration: 250,
-      useNativeDriver: true,
-    }).start();
-  }, [value]);
+const H_WAVE_RANGE = SWIPEABLE_DIMENSIONS + 2 * BUTTON_PADDING;
+const H_SWIPE_RANGE = BUTTON_WIDTH - 2 * BUTTON_PADDING - SWIPEABLE_DIMENSIONS;
+
+// Use Animated wrapper for gradient
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+
+interface SwipeButtonProps {
+  onToggle?: (isToggled: boolean) => void;
+}
+
+const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
+  const X = useSharedValue(0);
+  const start = useSharedValue(0);
+  const [toggled, setToggled] = useState(false);
+
+  const handleComplete = (isToggled: boolean) => {
+    if (isToggled !== toggled) {
+      setToggled(isToggled);
+      onToggle?.(isToggled);
+    }
+  };
+
+  const pan = Gesture.Pan()
+    .onBegin(() => {
+      start.value = X.value;
+    })
+    .onUpdate((event) => {
+      const newValue = start.value + event.translationX;
+      X.value = Math.min(Math.max(newValue, 0), H_SWIPE_RANGE);
+    })
+    .onEnd(() => {
+      const shouldToggleOff = X.value < H_SWIPE_RANGE / 2;
+      X.value = withSpring(shouldToggleOff ? 0 : H_SWIPE_RANGE);
+      runOnJS(handleComplete)(!shouldToggleOff);
+    });
+
+  const InterpolateXInput = [0, H_SWIPE_RANGE];
+
+  const AnimatedStyles = {
+    colorWave: useAnimatedStyle(() => ({
+      width: H_WAVE_RANGE + X.value,
+      opacity: interpolate(X.value, InterpolateXInput, [0, 1]),
+    })),
+    swipeable: useAnimatedStyle(() => ({
+      backgroundColor: interpolateColor(X.value, [0, H_SWIPE_RANGE], ['#8b5cf6', '#ede9fe']),
+      transform: [{ translateX: X.value }],
+    })),
+    swipeText: useAnimatedStyle(() => ({
+      opacity: interpolate(X.value, InterpolateXInput, [1, 0], Extrapolate.CLAMP),
+      transform: [
+        {
+          translateX: interpolate(
+            X.value,
+            InterpolateXInput,
+            [0, BUTTON_WIDTH / 2 - SWIPEABLE_DIMENSIONS],
+            Extrapolate.CLAMP
+          ),
+        },
+      ],
+    })),
+  };
 
   return (
-    <Pressable
-      onPress={onToggle}
-      className={`w-16 h-9 rounded-full p-1 ${value ? "bg-purple-600" : "bg-gray-700"}`}
-    >
-      <Animated.View
-        style={{ transform: [{ translateX }] }}
-        className="w-7 h-7 bg-white rounded-full"
+    <Animated.View style={styles.swipeCont}>
+      {/* Gradient background wave */}
+      <AnimatedLinearGradient
+        style={[AnimatedStyles.colorWave, styles.colorWave]}
+        colors={['#8b5cf6', '#7c3aed']} // NativeWind purple gradient
+        start={{ x: 0.0, y: 0.5 }}
+        end={{ x: 1, y: 1 }}
       />
-    </Pressable>
+
+      {/* Swipeable circle */}
+      <GestureDetector gesture={pan}>
+        <Animated.View
+          style={[
+            styles.swipeable,
+            AnimatedStyles.swipeable,
+            { justifyContent: 'center', alignItems: 'center' },
+          ]}>
+          <Animated.Image
+            source={
+              X.value >= H_SWIPE_RANGE / 2
+                ? require('../assets/locked-icon.png')
+                : require('../assets/unlocked-icon.png')
+            }
+            style={{
+              width: 40,
+              height: 40,
+              zIndex: 4,
+            }}
+          />
+        </Animated.View>
+      </GestureDetector>
+
+      {/* Swipe text */}
+      <Animated.Text style={[styles.swipeText, AnimatedStyles.swipeText]}>
+        Slide to Lock In
+      </Animated.Text>
+    </Animated.View>
   );
-}
+};
+
+const styles = StyleSheet.create({
+  swipeCont: {
+    height: BUTTON_HEIGHT,
+    width: BUTTON_WIDTH,
+    backgroundColor: '#e9d5ff',
+    borderRadius: BUTTON_HEIGHT,
+    padding: BUTTON_PADDING,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    overflow: 'hidden',
+    borderColor: '#8b5cf6',
+    borderWidth: 4,
+  },
+  colorWave: {
+    position: 'absolute',
+    left: 0,
+    height: BUTTON_HEIGHT,
+    borderRadius: BUTTON_HEIGHT,
+  },
+  swipeable: {
+    position: 'absolute',
+    left: BUTTON_PADDING,
+    height: SWIPEABLE_DIMENSIONS,
+    width: SWIPEABLE_DIMENSIONS,
+    borderRadius: SWIPEABLE_DIMENSIONS,
+    zIndex: 3,
+    backgroundColor: '#8b5cf6',
+  },
+  swipeText: {
+    alignSelf: 'center',
+    fontSize: 20,
+    fontWeight: 'bold',
+    zIndex: 2,
+    marginLeft: 20,
+    color: '#8b5cf6',
+  },
+});
+
+export default ToggleSwitch;

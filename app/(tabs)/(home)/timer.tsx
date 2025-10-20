@@ -1,0 +1,186 @@
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, TouchableOpacity, Alert, StatusBar } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import Animated, {
+  useSharedValue,
+  useAnimatedProps,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
+import Svg, { Circle } from 'react-native-svg';
+import ExitButton from '../../../components/ExitButton';
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const TIMER_CIRCLE_RADIUS = 110;
+const TIMER_CIRCLE_STROKE_WIDTH = 14;
+const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * TIMER_CIRCLE_RADIUS;
+
+export default function ActiveSession() {
+  const router = useRouter();
+  const { duration } = useLocalSearchParams();
+
+  const totalSeconds = Number(duration) * 60;
+  const [timeLeft, setTimeLeft] = useState(totalSeconds);
+  const [xpEarned, setXpEarned] = useState(0);
+
+  // Fix: Use NodeJS.Timeout type for intervalRef
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const progress = useSharedValue(1);
+
+  useEffect(() => {
+    intervalRef.current = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          // Fix: Check if intervalRef.current is not null before clearing
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+          }
+          handleSessionComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      // Fix: Check if intervalRef.current is not null before clearing
+      if (intervalRef.current !== null) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const newProgress = timeLeft / totalSeconds;
+    progress.value = withTiming(newProgress, {
+      duration: 1000,
+      easing: Easing.linear,
+    });
+
+    const baseXP = Number(duration);
+    const earnedSoFar = Math.floor((1 - newProgress) * baseXP);
+    setXpEarned(earnedSoFar);
+  }, [timeLeft]);
+
+  const animatedProps = useAnimatedProps(() => {
+    const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress.value);
+    return {
+      strokeDashoffset,
+    };
+  });
+
+  const handleSessionComplete = () => {
+    router.replace({
+      pathname: '/(tabs)/(home)/session-complete',
+      params: {
+        duration,
+        xpEarned: Number(duration),
+      },
+    });
+  };
+
+  const handleGiveUp = () => {
+    Alert.alert('⚠️ Give Up?', "You'll lose 5 XP and your progress won't count. Are you sure?", [
+      {
+        text: 'Keep Going',
+        style: 'cancel',
+      },
+      {
+        text: 'Give Up',
+        style: 'destructive',
+        onPress: () => {
+          if (intervalRef.current !== null) {
+            clearInterval(intervalRef.current);
+          }
+          router.replace('/(tabs)/(home)/home');
+        },
+      },
+    ]);
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <View className="flex-1 bg-dark-bg">
+      <StatusBar barStyle="light-content" />
+
+      {/* Header with exit button */}
+      <View className="flex-row items-center px-6 pt-12">
+        <ExitButton onPress={handleGiveUp} />
+      </View>
+
+      {/* Timer Circle */}
+      <View className="flex-1 items-center justify-center">
+        <View className="items-center justify-center">
+          <Svg
+            width={TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH}
+            height={TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH}>
+            {/* Background circle */}
+            <Circle
+              cx={(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}
+              cy={(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}
+              r={TIMER_CIRCLE_RADIUS}
+              stroke="#334155"
+              strokeWidth={TIMER_CIRCLE_STROKE_WIDTH}
+              fill="transparent"
+            />
+
+            {/* Progress circle */}
+            <AnimatedCircle
+              cx={(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}
+              cy={(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}
+              r={TIMER_CIRCLE_RADIUS}
+              stroke="#10b981"
+              strokeWidth={TIMER_CIRCLE_STROKE_WIDTH}
+              fill="transparent"
+              strokeDasharray={CIRCLE_CIRCUMFERENCE}
+              strokeLinecap="round"
+              animatedProps={animatedProps}
+              rotation="-90"
+              origin={`${(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}, ${(TIMER_CIRCLE_RADIUS * 2 + TIMER_CIRCLE_STROKE_WIDTH) / 2}`}
+            />
+          </Svg>
+
+          {/* Time display */}
+          <View className="absolute items-center justify-center">
+            <Text className="text-7xl font-bold text-white">{formatTime(timeLeft)}</Text>
+            <Text className="mt-2 text-sm text-dark-text-secondary">remaining</Text>
+          </View>
+        </View>
+      </View>
+
+      {/* Motivational Quote */}
+      <View className="mx-6 mb-6 rounded-2xl bg-dark-surface p-5">
+        <Text className="text-center text-xs italic leading-5 text-dark-text-secondary">
+          "Focus is the gateway to thinking clearly, learning quickly, and producing great results."
+        </Text>
+      </View>
+
+      {/* Stats Row */}
+      <View className="mx-6 mb-6 flex-row gap-4">
+        {/* XP Earning */}
+        <View className="flex-1 items-center rounded-xl bg-dark-surface p-4">
+          <Text className="mb-2 text-xs text-dark-text-secondary">XP Earning</Text>
+          <Text className="text-xl font-bold text-success-500">+{xpEarned}</Text>
+        </View>
+
+        {/* Sessions Today */}
+        <View className="flex-1 items-center rounded-xl bg-dark-surface p-4">
+          <Text className="mb-2 text-xs text-dark-text-secondary">Sessions Today</Text>
+          <Text className="text-xl font-bold text-primary-400">3</Text>
+        </View>
+      </View>
+
+      {/* Give Up Button */}
+      <TouchableOpacity onPress={handleGiveUp} className="mb-8 items-center">
+        <Text className="text-xs text-slate-600 opacity-60">Give up? (-5 XP penalty)</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
