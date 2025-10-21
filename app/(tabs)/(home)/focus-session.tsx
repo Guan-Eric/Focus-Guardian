@@ -71,7 +71,10 @@ export default function FocusSession() {
 
         {/* Start Button */}
         <ToggleSwitch
-          onToggle={() => router.push({ pathname: '/(tabs)/(home)/timer', params: { duration } })}
+          onToggle={() => {
+            router.push({ pathname: '/(tabs)/(home)/timer', params: { duration } });
+          }}
+          title={'Lock In'}
         />
 
         {/* Footer / Motivation */}

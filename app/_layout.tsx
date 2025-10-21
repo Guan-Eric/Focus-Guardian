@@ -11,7 +11,11 @@ export default function RootLayout() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="welcome" />
         <Stack.Screen name="paywall" />
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="set-goal" />
+        <Stack.Screen
+          name="(tabs)"
+          options={{ headerShown: false, gestureEnabled: false, animation: 'slide_from_right' }}
+        />
       </Stack>
     </GestureHandlerRootView>
   );

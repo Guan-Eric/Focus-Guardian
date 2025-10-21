@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureDetector, Gesture } from 'react-native-gesture-handler';
@@ -11,6 +11,8 @@ import Animated, {
   interpolateColor,
   runOnJS,
 } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 
 const BUTTON_WIDTH = 300;
 const BUTTON_HEIGHT = 80;
@@ -25,16 +27,26 @@ const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
 
 interface SwipeButtonProps {
   onToggle?: (isToggled: boolean) => void;
+  title: string;
 }
 
-const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
+const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle, title }) => {
   const X = useSharedValue(0);
   const start = useSharedValue(0);
   const [toggled, setToggled] = useState(false);
 
-  const handleComplete = (isToggled: boolean) => {
+  useFocusEffect(
+    useCallback(() => {
+      setToggled(false);
+      X.value = 0;
+    }, [])
+  );
+
+  const handleComplete = async (isToggled: boolean) => {
     if (isToggled !== toggled) {
       setToggled(isToggled);
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
       onToggle?.(isToggled);
     }
   };
@@ -61,7 +73,7 @@ const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
       opacity: interpolate(X.value, InterpolateXInput, [0, 1]),
     })),
     swipeable: useAnimatedStyle(() => ({
-      backgroundColor: interpolateColor(X.value, [0, H_SWIPE_RANGE], ['#8b5cf6', '#ede9fe']),
+      backgroundColor: interpolateColor(X.value, [0, H_SWIPE_RANGE], ['#3b82f6', '#e0f2fe']),
       transform: [{ translateX: X.value }],
     })),
     swipeText: useAnimatedStyle(() => ({
@@ -84,7 +96,7 @@ const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
       {/* Gradient background wave */}
       <AnimatedLinearGradient
         style={[AnimatedStyles.colorWave, styles.colorWave]}
-        colors={['#8b5cf6', '#7c3aed']} // NativeWind purple gradient
+        colors={['#3b82f6', '#2563eb']}
         start={{ x: 0.0, y: 0.5 }}
         end={{ x: 1, y: 1 }}
       />
@@ -99,11 +111,12 @@ const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
           ]}>
           <Animated.Image
             source={
-              X.value >= H_SWIPE_RANGE / 2
+              toggled
                 ? require('../assets/locked-icon.png')
                 : require('../assets/unlocked-icon.png')
             }
             style={{
+              tintColor: toggled ? '#3b82f6' : '#ffffff',
               width: 40,
               height: 40,
               zIndex: 4,
@@ -113,9 +126,7 @@ const ToggleSwitch: React.FC<SwipeButtonProps> = ({ onToggle }) => {
       </GestureDetector>
 
       {/* Swipe text */}
-      <Animated.Text style={[styles.swipeText, AnimatedStyles.swipeText]}>
-        Slide to Lock In
-      </Animated.Text>
+      <Animated.Text style={[styles.swipeText, AnimatedStyles.swipeText]}>{title}</Animated.Text>
     </Animated.View>
   );
 };
@@ -124,14 +135,14 @@ const styles = StyleSheet.create({
   swipeCont: {
     height: BUTTON_HEIGHT,
     width: BUTTON_WIDTH,
-    backgroundColor: '#e9d5ff',
+    backgroundColor: '#e0f2fe',
     borderRadius: BUTTON_HEIGHT,
     padding: BUTTON_PADDING,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
     overflow: 'hidden',
-    borderColor: '#8b5cf6',
+    borderColor: '#3b82f6',
     borderWidth: 4,
   },
   colorWave: {
@@ -147,7 +158,7 @@ const styles = StyleSheet.create({
     width: SWIPEABLE_DIMENSIONS,
     borderRadius: SWIPEABLE_DIMENSIONS,
     zIndex: 3,
-    backgroundColor: '#8b5cf6',
+    backgroundColor: '#3b82f6',
   },
   swipeText: {
     alignSelf: 'center',
@@ -155,7 +166,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     zIndex: 2,
     marginLeft: 20,
-    color: '#8b5cf6',
+    color: '#3b82f6',
   },
 });
 

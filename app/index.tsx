@@ -9,7 +9,7 @@ export default function Index() {
   useEffect(() => {
     (async () => {
       const seen = await AsyncStorage.getItem('onboardingSeen');
-      router.replace(seen ? '/(tabs)/(home)/home' : '/welcome');
+      router.replace(/*seen ? '/(tabs)/(home)/home' : */ '/welcome');
     })();
   }, []);
 

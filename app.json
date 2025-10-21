@@ -4,11 +4,11 @@
     "slug": "lock-in",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/lock-in-icon.png",
+    "icon": "./assets/lock-in-icon.jpg",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/lock-in-icon.png",
+      "image": "./assets/lock-in-icon.jpg",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -17,14 +17,14 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/lock-in-icon.png",
+        "foregroundImage": "./assets/lock-in-icon.jpg",
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/lock-in-icon.png"
+      "favicon": "./assets/lock-in-icon.jpg"
     },
     "plugins": ["expo-router"],
     "experiments": {

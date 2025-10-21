@@ -12,6 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 type MoodRating = 'hard' | 'okay' | 'good' | 'amazing';
 
@@ -34,12 +35,9 @@ export default function SessionComplete() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     // Start animations
-    celebrationScale.value = withSequence(
-      withSpring(1.2, { damping: 2, stiffness: 100 }),
-      withSpring(1, { damping: 8, stiffness: 100 })
-    );
+    celebrationScale.value = withSequence(withSpring(1.5), withSpring(1));
 
-    xpScale.value = withDelay(300, withSpring(1, { damping: 8, stiffness: 100 }));
+    xpScale.value = withDelay(300, withSequence(withSpring(1.1), withSpring(1)));
 
     progressWidth.value = withDelay(
       600,
@@ -94,7 +92,6 @@ export default function SessionComplete() {
     {
       id: 'hard',
       emoji: '😫',
-
       color: '#92400e',
       bgColor: '#fef3c7',
       borderColor: '#fbbf24',
@@ -102,7 +99,6 @@ export default function SessionComplete() {
     {
       id: 'okay',
       emoji: '😐',
-
       color: '#92400e',
       bgColor: '#fef3c7',
       borderColor: '#fbbf24',
@@ -110,7 +106,6 @@ export default function SessionComplete() {
     {
       id: 'good',
       emoji: '😊',
-
       color: '#92400e',
       bgColor: '#fef3c7',
       borderColor: '#fbbf24',
@@ -118,7 +113,6 @@ export default function SessionComplete() {
     {
       id: 'amazing',
       emoji: '🔥',
-
       color: '#92400e',
       bgColor: '#fef3c7',
       borderColor: '#fbbf24',
@@ -128,6 +122,7 @@ export default function SessionComplete() {
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
+      <ConfettiCannon count={100} origin={{ x: -10, y: 0 }} autoStart={true} fadeOut={true} />
 
       <ScrollView
         className="flex-1"
