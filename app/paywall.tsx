@@ -11,6 +11,8 @@ import {
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
+import { completeOnboarding } from '../utils/onboarding';
+import { auth } from '../firebase';
 
 export default function PaywallScreen() {
   const router = useRouter();
@@ -48,7 +50,7 @@ export default function PaywallScreen() {
 
         if (customerInfo.entitlements.active['premium']) {
           // User is now premium
-          router.replace('/(tabs)/(home)/home');
+          completeOnboarding(auth.currentUser?.uid as string);
         }
       }
     } catch (error: any) {
@@ -87,7 +89,7 @@ export default function PaywallScreen() {
         {/* Close Button */}
         <View className="flex-row justify-end px-6 pt-16">
           <TouchableOpacity
-            onPress={() => router.replace('/(tabs)/(home)/home')}
+            onPress={() => completeOnboarding(auth.currentUser?.uid as string)}
             className="h-10 w-10 items-center justify-center">
             <Text className="text-2xl text-slate-600">✕</Text>
           </TouchableOpacity>

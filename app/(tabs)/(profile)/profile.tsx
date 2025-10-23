@@ -1,5 +1,5 @@
 // app/(tabs)/profile.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
 import { useAuth } from '../../../context/AuthContext';
 import { useRouter } from 'expo-router';
@@ -14,21 +14,41 @@ export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(userData?.settings?.notifications ?? true);
   const [dailyCheckIn, setDailyCheckIn] = useState(userData?.settings?.dailyCheckIn ?? true);
 
+  // Update local state when userData changes
+  useEffect(() => {
+    if (userData?.settings) {
+      setNotifications(userData.settings.notifications ?? true);
+      setDailyCheckIn(userData.settings.dailyCheckIn ?? true);
+    }
+  }, [userData?.settings]);
+
   const handleToggleNotifications = async (value: boolean) => {
     setNotifications(value);
     if (user) {
-      await updateDoc(doc(db, 'users', user.uid), {
-        'settings.notifications': value,
-      });
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          'settings.notifications': value,
+        });
+      } catch (error) {
+        console.error('Error updating notifications:', error);
+        // Revert on error
+        setNotifications(!value);
+      }
     }
   };
 
   const handleToggleDailyCheckIn = async (value: boolean) => {
     setDailyCheckIn(value);
     if (user) {
-      await updateDoc(doc(db, 'users', user.uid), {
-        'settings.dailyCheckIn': value,
-      });
+      try {
+        await updateDoc(doc(db, 'users', user.uid), {
+          'settings.dailyCheckIn': value,
+        });
+      } catch (error) {
+        console.error('Error updating daily check-in:', error);
+        // Revert on error
+        setDailyCheckIn(!value);
+      }
     }
   };
 
@@ -39,8 +59,12 @@ export default function ProfileScreen() {
         text: 'Sign Out',
         style: 'destructive',
         onPress: async () => {
-          await signOut();
-          router.replace('/welcome');
+          try {
+            await signOut();
+          } catch (error) {
+            console.error('Sign out error:', error);
+            Alert.alert('Error', 'Failed to sign out. Please try again.');
+          }
         },
       },
     ]);
@@ -87,6 +111,15 @@ export default function ProfileScreen() {
     );
   };
 
+  // Don't render if no user data
+  if (!userData) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-slate-400">Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-white">
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
@@ -105,29 +138,29 @@ export default function ProfileScreen() {
             {/* Avatar */}
             <View className="mb-4 items-center">
               <View className="mb-3 h-20 w-20 items-center justify-center rounded-full bg-white">
-                <Text className="text-5xl">{userData?.titleEmoji || '🌱'}</Text>
+                <Text className="text-5xl">{userData.titleEmoji || '🌱'}</Text>
               </View>
               <Text className="text-xl font-bold text-white">
-                {userData?.email || 'Anonymous User'}
+                {userData.email || 'Anonymous User'}
               </Text>
               <Text className="mt-1 text-sm text-white opacity-90">
-                {userData?.title} • Level {userData?.level}
+                {userData.title} • Level {userData.level}
               </Text>
             </View>
 
             {/* Stats Row */}
             <View className="mt-4 flex-row justify-around">
               <View className="items-center">
-                <Text className="text-2xl font-bold text-white">{userData?.streak || 0}</Text>
+                <Text className="text-2xl font-bold text-white">{userData.streak || 0}</Text>
                 <Text className="mt-1 text-xs text-white opacity-85">Day Streak</Text>
               </View>
               <View className="items-center">
-                <Text className="text-2xl font-bold text-white">{userData?.totalXP || 0}</Text>
+                <Text className="text-2xl font-bold text-white">{userData.totalXP || 0}</Text>
                 <Text className="mt-1 text-xs text-white opacity-85">Total XP</Text>
               </View>
               <View className="items-center">
                 <Text className="text-2xl font-bold text-white">
-                  {userData?.badges?.length || 0}
+                  {userData.badges?.length || 0}
                 </Text>
                 <Text className="mt-1 text-xs text-white opacity-85">Badges</Text>
               </View>
@@ -164,7 +197,7 @@ export default function ProfileScreen() {
 
           {/* Daily Goal */}
           <TouchableOpacity
-            onPress={() => router.push('/(tabs)/(settings)/daily-goal')}
+            onPress={() => router.push('/(tabs)/(profile)/daily-goal')}
             className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-primary-100">
               <Text className="text-xl">🎯</Text>
@@ -172,7 +205,7 @@ export default function ProfileScreen() {
             <View className="flex-1">
               <Text className="mb-1 text-sm font-bold text-slate-900">Daily Screen Time Goal</Text>
               <Text className="text-xs text-slate-600">
-                {userData?.settings?.screenTimeGoal || 2} hours per day
+                {userData.settings?.screenTimeGoal || 2} hours per day
               </Text>
             </View>
             <Text className="text-lg text-slate-400">›</Text>
@@ -215,20 +248,18 @@ export default function ProfileScreen() {
           </View>
 
           {/* Account */}
-          {!user?.isAnonymous && (
-            <TouchableOpacity
-              onPress={() => router.push('/(tabs)/(settings)/account')}
-              className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
-              <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-purple-100">
-                <Text className="text-xl">👤</Text>
-              </View>
-              <View className="flex-1">
-                <Text className="mb-1 text-sm font-bold text-slate-900">Account Settings</Text>
-                <Text className="text-xs text-slate-600">Email and password</Text>
-              </View>
-              <Text className="text-lg text-slate-400">›</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            onPress={() => router.push('/(tabs)/(profile)/account')}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+            <View className="mr-4 h-10 w-10 items-center justify-center rounded-full bg-purple-100">
+              <Text className="text-xl">👤</Text>
+            </View>
+            <View className="flex-1">
+              <Text className="mb-1 text-sm font-bold text-slate-900">Account Settings</Text>
+              <Text className="text-xs text-slate-600">Manage your Account</Text>
+            </View>
+            <Text className="text-lg text-slate-400">›</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Premium Section */}

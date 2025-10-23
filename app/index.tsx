@@ -1,69 +1,70 @@
-// app/index.tsx
-import { useEffect, useState } from 'react';
-import { router } from 'expo-router';
+// app/index.tsx - Simplest and Most Reliable
 import { View, ActivityIndicator } from 'react-native';
-import { useAuth } from '../context/AuthContext';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
 
-export default function Index() {
-  const { user, loading: authLoading } = useAuth();
-  const [checking, setChecking] = useState(true);
+function Index() {
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    checkUserStatus();
-  }, [user, authLoading]);
+  const unsubscribe = async () => {
+    onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user) {
+          // No user - go to welcome
+          console.log('No user, redirecting to welcome');
+          router.replace('/welcome');
+          setLoading(false);
+          return;
+        }
 
-  const checkUserStatus = async () => {
-    // Wait for auth to finish loading
-    if (authLoading) return;
+        // User exists - check onboarding status
+        console.log('User found:', user.uid);
+        const userRef = doc(db, 'users', user.uid);
+        const userDoc = await getDoc(userRef);
 
-    try {
-      // No user - go to onboarding
-      if (!user) {
-        router.replace('/welcome');
-        return;
-      }
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          console.log('Onboarding status:', userData.onboardingCompleted);
 
-      // User exists - check if onboarding is completed
-      const userRef = doc(db, 'users', user.uid);
-      const userDoc = await getDoc(userRef);
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-
-        // Check if user has completed onboarding
-        // You can use different criteria:
-        // - onboardingCompleted flag
-        // - screenTimeGoal is set
-        // - has any sessions
-        const hasCompletedOnboarding =
-          userData.onboardingCompleted === true || userData.settings?.screenTimeGoal !== undefined;
-
-        if (hasCompletedOnboarding) {
-          // Onboarding done - go to app
-          router.replace('/(tabs)/(home)/home');
+          if (userData.onboardingCompleted) {
+            // Onboarding complete - go to home
+            router.replace('/(tabs)/(home)/home');
+          } else {
+            // Onboarding not complete - go to set goal
+            router.replace('/set-goal');
+          }
         } else {
-          // Onboarding not done - continue onboarding
+          // User document doesn't exist yet - go to onboarding
+          console.log('No user document, going to onboarding');
           router.replace('/set-goal');
         }
-      } else {
-        // User document doesn't exist yet - start onboarding
-        router.replace('/set-goal');
+      } catch (error) {
+        console.error('Error in auth check:', error);
+        // On error, default to welcome
+        router.replace('/welcome');
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error('Error checking user status:', error);
-      // On error, default to welcome screen
-      router.replace('/welcome');
-    } finally {
-      setChecking(false);
-    }
+    });
   };
 
-  // Show loading while checking
-  return (
-    <View className="flex-1 items-center justify-center bg-white">
-      <ActivityIndicator size="large" color="#3b82f6" />
-    </View>
-  );
+  useEffect(() => {
+    unsubscribe();
+  }, []);
+
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <ActivityIndicator size="large" color="#3b82f6" />
+      </View>
+    );
+  }
+
+  // Return null after navigation completes
+  return null;
 }
+
+export default Index;

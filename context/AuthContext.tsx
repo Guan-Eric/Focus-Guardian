@@ -1,10 +1,11 @@
-// context/AuthContext.tsx
+// context/AuthContext.tsx - Data Provider Only (No Navigation)
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User } from 'firebase/auth';
 import { doc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+import { onAuthStateChanged } from 'firebase/auth';
 import { AuthService } from '../services/authService';
 import { getLevelFromXP } from '../utils/levelingSystem';
-import { db } from '../firebase';
 
 type UserData = {
   uid: string;
@@ -38,6 +39,7 @@ type UserData = {
     longestStreak?: number;
   };
   reason: string[];
+  onboardingCompleted: boolean;
 };
 
 type AuthContextType = {
@@ -57,48 +59,65 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Listen to auth state changes
-    const unsubscribeAuth = AuthService.onAuthStateChange(async (firebaseUser) => {
+    let firestoreUnsubscribe: (() => void) | null = null;
+
+    // Listen to auth state
+    const authUnsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // Clean up previous Firestore listener
+      if (firestoreUnsubscribe) {
+        firestoreUnsubscribe();
+        firestoreUnsubscribe = null;
+      }
+
       setUser(firebaseUser);
 
       if (firebaseUser) {
-        // Subscribe to user data changes
+        // Subscribe to user data
         const userRef = doc(db, 'users', firebaseUser.uid);
-        const unsubscribeFirestore = onSnapshot(userRef, (doc) => {
-          if (doc.exists()) {
-            const data = doc.data();
-            const levelData = getLevelFromXP(data.totalXP || 0);
+        firestoreUnsubscribe = onSnapshot(
+          userRef,
+          (docSnapshot) => {
+            if (docSnapshot.exists()) {
+              const data = docSnapshot.data();
+              const levelData = getLevelFromXP(data.totalXP || 0);
 
-            setUserData({
-              uid: firebaseUser.uid,
-              isAnonymous: firebaseUser.isAnonymous,
-              email: firebaseUser.email || undefined,
-              ...data,
-              ...levelData,
-            } as UserData);
+              setUserData({
+                uid: firebaseUser.uid,
+                isAnonymous: firebaseUser.isAnonymous,
+                email: firebaseUser.email || undefined,
+                ...data,
+                ...levelData,
+              } as UserData);
+            }
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Firestore listener error:', error);
+            setLoading(false);
           }
-        });
-
-        setLoading(false);
-        return () => unsubscribeFirestore();
+        );
       } else {
+        // No user - clear data
         setUserData(null);
         setLoading(false);
       }
     });
 
-    return () => unsubscribeAuth();
+    // Cleanup
+    return () => {
+      authUnsubscribe();
+      if (firestoreUnsubscribe) {
+        firestoreUnsubscribe();
+      }
+    };
   }, []);
 
   const signIn = async () => {
-    setLoading(true);
     try {
       await AuthService.signInAnonymous();
     } catch (error) {
       console.error('Sign in error:', error);
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
 

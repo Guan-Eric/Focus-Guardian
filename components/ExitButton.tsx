@@ -1,7 +1,11 @@
 import React from 'react';
 import { TouchableOpacity, Text } from 'react-native';
 
-const ExitButton = ({ onPress }) => {
+interface ExitButtonProps {
+  onPress: () => void;
+}
+
+const ExitButton: React.FC<ExitButtonProps> = ({ onPress }) => {
   return (
     <TouchableOpacity
       onPress={onPress}

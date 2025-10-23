@@ -26,7 +26,7 @@ export default function SessionComplete() {
   }>();
   const { userData, user } = useAuth();
 
-  const [selectedMood, setSelectedMood] = useState<MoodRating | null>(null);
+  const [selectedMood, setSelectedMood] = useState<MoodRating | 'none'>('none');
   const [saving, setSaving] = useState(false);
 
   // Animation values
@@ -70,14 +70,13 @@ export default function SessionComplete() {
   };
 
   const handleDone = async () => {
-    if (!user || !selectedMood) {
+    if (!user) {
       router.push('/(tabs)/(home)/home');
       return;
     }
 
     setSaving(true);
     try {
-      // Save session to Firebase
       await RewardService.recordSession(user.uid, Number(duration), selectedMood);
 
       router.push('/(tabs)/(home)/home');

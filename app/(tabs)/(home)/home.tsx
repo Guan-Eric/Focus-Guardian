@@ -11,10 +11,19 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useAuth } from '../../../context/AuthContext';
 
+type DailyQuest = {
+  id: string;
+  title: string;
+  xp: number;
+  completed: boolean;
+  progress?: number;
+};
+
 export default function HomeScreen() {
   const router = useRouter();
   const { userData, loading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+  const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([]);
 
   // Safe fallback if userData is null
   if (!userData && !loading) {
@@ -35,44 +44,95 @@ export default function HomeScreen() {
   const xpToNextLevel = userData?.xpToNextLevel || 100;
   const screenTimeGoal = userData?.settings?.screenTimeGoal || 3;
 
-  // Calculate today's stats (these would come from your stats object in production)
-  const screenTimeToday = userData?.stats?.screenTimeToday || 0;
-  const xpToday = userData?.stats?.xpToday || 0;
-  const sessionsToday = userData?.stats?.sessionsToday || 0;
+  // Real stats from userData
+  const stats = userData?.stats || {
+    screenTimeToday: 0,
+    xpToday: 0,
+    sessionsToday: 0,
+    totalSessions: 0,
+    totalMinutes: 0,
+    longestSession: 0,
+    maxSessionsPerDay: 0,
+    totalResists: 0,
+    questsCompleted: 0,
+  };
+
+  const screenTimeToday = stats.screenTimeToday || 0;
+  const xpToday = stats.xpToday || 0;
+  const sessionsToday = stats.sessionsToday || 0;
   const badgesEarned = userData?.badges?.length || 0;
 
   const screenTimeProgress = (screenTimeToday / screenTimeGoal) * 100;
   const xpProgress = (currentXP / xpToNextLevel) * 100;
 
-  const [dailyQuests, setDailyQuests] = useState([
-    {
-      id: '1',
+  // Generate dynamic daily quests based on user data
+  useEffect(() => {
+    if (!userData) return;
+
+    const quests: DailyQuest[] = [];
+
+    // Quest 1: Complete a focus session (30+ minutes)
+    const hasCompletedSession = sessionsToday > 0;
+    quests.push({
+      id: 'session',
       title: 'Complete 30-min focus session',
       xp: 20,
-      completed: true,
-    },
-    {
-      id: '2',
+      completed: hasCompletedSession,
+    });
+
+    // Quest 2: Stay under screen time goal
+    const screenTimePercent = (screenTimeToday / screenTimeGoal) * 100;
+    const stayedUnderGoal = screenTimeToday <= screenTimeGoal;
+    quests.push({
+      id: 'screentime',
       title: 'Stay under screen time goal',
       xp: 50,
-      completed: false,
-      progress: 60, // percentage
-    },
-    {
-      id: '3',
-      title: 'Resist distracting apps 5 times',
+      completed: stayedUnderGoal && screenTimeToday > 0,
+      progress: Math.min(screenTimePercent, 100),
+    });
+
+    // Quest 3: Complete 3 sessions in a day
+    const completedThreeSessions = sessionsToday >= 3;
+    quests.push({
+      id: 'three-sessions',
+      title: 'Complete 3 focus sessions',
+      xp: 35,
+      completed: completedThreeSessions,
+      progress: (sessionsToday / 3) * 100,
+    });
+
+    // Quest 4: Earn 100 XP today
+    const earned100XP = xpToday >= 100;
+    quests.push({
+      id: 'xp-goal',
+      title: 'Earn 100 XP today',
+      xp: 25,
+      completed: earned100XP,
+      progress: (xpToday / 100) * 100,
+    });
+
+    // Quest 5: Maintain your streak
+    const maintainedStreak = currentStreak > 0 && sessionsToday > 0;
+    quests.push({
+      id: 'streak',
+      title: `Maintain your ${currentStreak}-day streak`,
       xp: 15,
-      completed: false,
-      progress: 40,
-    },
-  ]);
+      completed: maintainedStreak,
+    });
+
+    // Only show 3 quests at a time - prioritize incomplete ones
+    const incompleteQuests = quests.filter((q) => !q.completed);
+    const completeQuests = quests.filter((q) => q.completed);
+    const displayQuests = [...incompleteQuests, ...completeQuests];
+
+    setDailyQuests(displayQuests);
+  }, [userData, sessionsToday, screenTimeToday, xpToday, currentStreak, screenTimeGoal]);
 
   // Animations
   const pulseScale = useSharedValue(1);
   const fabScale = useSharedValue(1);
 
   useEffect(() => {
-    // Pulse animation for streak fire emoji
     pulseScale.value = withRepeat(
       withSequence(
         withSpring(1.2, { damping: 2, stiffness: 100 }),
@@ -93,7 +153,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Fetch latest data from Firebase
+    // The AuthContext listener will automatically update userData
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);
@@ -105,6 +165,31 @@ export default function HomeScreen() {
       withSpring(1, { damping: 10, stiffness: 200 })
     );
     router.push('/(tabs)/(home)/focus-session');
+  };
+
+  // Dynamic motivational message
+  const getMotivationalMessage = () => {
+    if (currentStreak >= 7) {
+      return "Amazing! You're on fire with your streak! 🔥";
+    } else if (sessionsToday >= 3) {
+      return 'Incredible focus today! Keep it up! 💪';
+    } else if (xpToday >= 50) {
+      return "You're crushing your goals today! 🎯";
+    } else if (sessionsToday >= 1) {
+      return 'Great start! One more session to build momentum! 🚀';
+    } else {
+      return 'Ready to start your focus journey today? 🌟';
+    }
+  };
+
+  // Calculate next milestone
+  const getNextMilestone = () => {
+    if (currentStreak < 7) return '7 days';
+    if (currentStreak < 14) return '14 days';
+    if (currentStreak < 30) return '30 days';
+    if (currentStreak < 50) return '50 days';
+    if (currentStreak < 100) return '100 days';
+    return `${Math.ceil(currentStreak / 100) * 100} days`;
   };
 
   return (
@@ -120,6 +205,7 @@ export default function HomeScreen() {
         <View className="flex-row items-center justify-between px-6 pb-4 pt-16">
           <View>
             <Text className="text-2xl font-bold text-slate-900">Welcome back! 👋</Text>
+            <Text className="mt-1 text-sm text-slate-600">{getMotivationalMessage()}</Text>
           </View>
         </View>
 
@@ -141,6 +227,7 @@ export default function HomeScreen() {
                   Level {level} {titleEmoji}
                 </Text>
               </View>
+
               {/* Streak Content */}
               <View className="mt-8 items-center">
                 <Text className="mb-1 text-7xl font-bold text-white">{currentStreak}</Text>
@@ -151,7 +238,9 @@ export default function HomeScreen() {
                   </Animated.Text>
                 </View>
                 <Text className="mt-2 text-sm text-white opacity-85">
-                  Keep going! Next milestone: 14 days
+                  {currentStreak > 0
+                    ? `Keep going! Next milestone: ${getNextMilestone()}`
+                    : 'Start your streak today!'}
                 </Text>
               </View>
             </View>
@@ -167,13 +256,18 @@ export default function HomeScreen() {
             <View className="mb-4">
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm font-bold text-slate-700">Screen Time</Text>
-                <Text className="text-sm font-bold text-success-600">
+                <Text
+                  className={`text-sm font-bold ${
+                    screenTimeToday <= screenTimeGoal ? 'text-success-600' : 'text-error-600'
+                  }`}>
                   {screenTimeToday.toFixed(1)}h / {screenTimeGoal}h
                 </Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-200">
                 <View
-                  className="h-2 rounded-full bg-success-500"
+                  className={`h-2 rounded-full ${
+                    screenTimeToday <= screenTimeGoal ? 'bg-success-500' : 'bg-error-500'
+                  }`}
                   style={{ width: `${Math.min(screenTimeProgress, 100)}%` }}
                 />
               </View>
@@ -182,8 +276,10 @@ export default function HomeScreen() {
             {/* XP Progress */}
             <View className="border-t border-slate-200 pt-4">
               <View className="mb-2 flex-row items-center justify-between">
-                <Text className="text-sm font-bold text-slate-700">XP Today</Text>
-                <Text className="text-sm font-bold text-primary-600">+{xpToday} XP</Text>
+                <Text className="text-sm font-bold text-slate-700">XP Progress</Text>
+                <Text className="text-sm font-bold text-primary-600">
+                  {currentXP} / {xpToNextLevel} XP
+                </Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-200">
                 <View
@@ -191,63 +287,77 @@ export default function HomeScreen() {
                   style={{ width: `${xpProgress}%` }}
                 />
               </View>
+              <Text className="mt-2 text-xs text-slate-500">+{xpToday} XP earned today</Text>
             </View>
           </View>
         </View>
 
         {/* Daily Quests Section */}
         <View className="mx-6 mb-4">
-          <Text className="mb-3 text-base font-bold text-slate-900">Daily Quests</Text>
+          <View className="mb-3 flex-row items-center justify-between">
+            <Text className="text-base font-bold text-slate-900">Daily Quests</Text>
+            <Text className="text-xs text-slate-500">
+              {dailyQuests.filter((q) => q.completed).length}/{dailyQuests.length} completed
+            </Text>
+          </View>
 
-          {dailyQuests.map((quest, index) => (
-            <View
-              key={quest.id}
-              className={`flex-row items-center rounded-xl p-4 ${
-                quest.completed
-                  ? 'mb-3 border-2 border-primary-200 bg-primary-50'
-                  : 'mb-3 border-2 border-slate-200 bg-slate-50'
-              }`}>
-              {/* Checkbox */}
+          {dailyQuests.length > 0 ? (
+            dailyQuests.map((quest) => (
               <View
-                className={`mr-3 h-6 w-6 items-center justify-center rounded-full ${
+                key={quest.id}
+                className={`flex-row items-center rounded-xl p-4 ${
                   quest.completed
-                    ? 'border-2 border-success-600 bg-success-500'
-                    : 'border-2 border-slate-300 bg-white'
+                    ? 'mb-3 border-2 border-primary-200 bg-primary-50'
+                    : 'mb-3 border-2 border-slate-200 bg-slate-50'
                 }`}>
-                {quest.completed && <Text className="text-xs font-bold text-white">✓</Text>}
-              </View>
-
-              {/* Quest Info */}
-              <View className="flex-1">
-                <Text
-                  className={`mb-1 text-sm ${
-                    quest.completed ? 'text-primary-900 line-through' : 'text-slate-900'
+                {/* Checkbox */}
+                <View
+                  className={`mr-3 h-6 w-6 items-center justify-center rounded-full ${
+                    quest.completed
+                      ? 'border-2 border-success-600 bg-success-500'
+                      : 'border-2 border-slate-300 bg-white'
                   }`}>
-                  {quest.title}
-                </Text>
+                  {quest.completed && <Text className="text-xs font-bold text-white">✓</Text>}
+                </View>
 
-                {/* Progress bar for incomplete quests */}
-                {!quest.completed && quest.progress !== undefined && (
-                  <View className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200">
-                    <View
-                      className="h-1 rounded-full bg-primary-400"
-                      style={{ width: `${quest.progress}%` }}
-                    />
-                  </View>
-                )}
-              </View>
+                {/* Quest Info */}
+                <View className="flex-1">
+                  <Text
+                    className={`mb-1 text-sm ${
+                      quest.completed ? 'text-primary-900 line-through' : 'text-slate-900'
+                    }`}>
+                    {quest.title}
+                  </Text>
 
-              {/* XP Badge */}
-              <View className={`ml-3 ${quest.completed ? 'opacity-60' : ''}`}>
-                <Text
-                  className={`text-xs font-bold ${
-                    quest.completed ? 'text-success-600' : 'text-slate-600'
-                  }`}>
-                  {quest.completed ? '✓ ' : ''}+{quest.xp} XP
-                </Text>
+                  {/* Progress bar for incomplete quests */}
+                  {!quest.completed && quest.progress !== undefined && (
+                    <View className="mt-1 h-1 overflow-hidden rounded-full bg-slate-200">
+                      <View
+                        className="h-1 rounded-full bg-primary-400"
+                        style={{ width: `${Math.min(quest.progress, 100)}%` }}
+                      />
+                    </View>
+                  )}
+                </View>
+
+                {/* XP Badge */}
+                <View className={`ml-3 ${quest.completed ? 'opacity-60' : ''}`}>
+                  <Text
+                    className={`text-xs font-bold ${
+                      quest.completed ? 'text-success-600' : 'text-slate-600'
+                    }`}>
+                    {quest.completed ? '✓ ' : ''}+{quest.xp} XP
+                  </Text>
+                </View>
               </View>
+            ))
+          ) : (
+            <View className="rounded-xl border-2 border-slate-200 bg-slate-50 p-6">
+              <Text className="text-center text-sm text-slate-600">
+                Complete your first session to unlock daily quests!
+              </Text>
             </View>
-          ))}
+          )}
         </View>
 
         {/* Quick Stats */}
@@ -268,13 +378,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Motivational Card */}
+        {/* Dynamic Tip */}
         <View className="mx-6 mb-4">
           <View className="rounded-2xl border border-primary-200 bg-primary-50 p-4">
             <Text className="mb-1 text-xs font-bold text-primary-900">💡 Tip of the Day</Text>
             <Text className="text-xs leading-5 text-primary-800">
-              The first 30 minutes after waking up are crucial. Keep your phone away and start your
-              day with intention.
+              {sessionsToday === 0
+                ? 'The first 30 minutes after waking up are crucial. Keep your phone away and start your day with intention.'
+                : 'Great job on your sessions! Remember to take short breaks between focus periods to maintain peak performance.'}
             </Text>
           </View>
         </View>
@@ -317,8 +428,6 @@ export default function HomeScreen() {
           </LinearGradient>
         </TouchableOpacity>
       </Animated.View>
-
-      {/* Bottom Navigation would go here if using tabs */}
     </View>
   );
 }

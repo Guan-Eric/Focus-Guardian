@@ -9,7 +9,7 @@ import {
   setDoc,
   Timestamp,
 } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
 import { getLevelFromXP, getLevelRewards } from '../utils/levelingSystem';
 import { checkShieldEarned, Shield } from '../utils/streakShieldSystem';
 import { Badge, Quest } from '../types/rewards';
