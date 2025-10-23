@@ -9,6 +9,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import Svg, { Circle } from 'react-native-svg';
 import ExitButton from '../../../components/ExitButton';
+import { getStreakMultiplier } from '../../../utils/xpSystem';
+import { useAuth } from '../../../context/AuthContext';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -19,6 +21,7 @@ const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * TIMER_CIRCLE_RADIUS;
 export default function ActiveSession() {
   const router = useRouter();
   const { duration } = useLocalSearchParams();
+  const { userData, user } = useAuth();
 
   const totalSeconds = Number(duration) * 60;
   const [timeLeft, setTimeLeft] = useState(totalSeconds);
@@ -59,10 +62,12 @@ export default function ActiveSession() {
       easing: Easing.linear,
     });
 
-    const baseXP = Number(duration);
-    const earnedSoFar = Math.floor((1 - newProgress) * baseXP);
+    const streak = userData?.streak || 0;
+    const baseXP = Number(duration) * 2;
+    const multiplier = getStreakMultiplier(streak);
+    const earnedSoFar = Math.floor((1 - newProgress) * baseXP * multiplier);
     setXpEarned(earnedSoFar);
-  }, [timeLeft]);
+  }, [timeLeft, userData]);
 
   const animatedProps = useAnimatedProps(() => {
     const strokeDashoffset = CIRCLE_CIRCUMFERENCE * (1 - progress.value);
@@ -72,11 +77,16 @@ export default function ActiveSession() {
   });
 
   const handleSessionComplete = () => {
+    const streak = userData?.streak || 0;
+    const baseXP = Number(duration) * 2;
+    const multiplier = getStreakMultiplier(streak);
+    const totalXP = Math.floor(baseXP * multiplier);
+
     router.replace({
       pathname: '/(tabs)/(home)/session-complete',
       params: {
         duration,
-        xpEarned: Number(duration),
+        xpEarned: totalXP,
       },
     });
   };
@@ -173,14 +183,11 @@ export default function ActiveSession() {
         {/* Sessions Today */}
         <View className="flex-1 items-center rounded-xl bg-dark-surface p-4">
           <Text className="mb-2 text-xs text-dark-text-secondary">Sessions Today</Text>
-          <Text className="text-xl font-bold text-primary-400">3</Text>
+          <Text className="text-xl font-bold text-primary-400">
+            {userData?.stats?.sessionsToday || 0}
+          </Text>
         </View>
       </View>
-
-      {/* Give Up Button */}
-      <TouchableOpacity onPress={handleGiveUp} className="mb-8 items-center">
-        <Text className="text-xs text-slate-600 opacity-60">Give up? (-5 XP penalty)</Text>
-      </TouchableOpacity>
     </View>
   );
 }

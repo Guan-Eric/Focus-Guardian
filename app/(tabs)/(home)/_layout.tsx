@@ -17,7 +17,7 @@ export default function HomeLayout() {
           headerShown: false,
           gestureEnabled: false,
           animation: 'fade',
-          presentation: 'transparentModal',
+          presentation: 'fullScreenModal',
         }}
       />
       <Stack.Screen

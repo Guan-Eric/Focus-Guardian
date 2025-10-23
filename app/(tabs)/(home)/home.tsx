@@ -8,28 +8,41 @@ import Animated, {
   withSpring,
   withRepeat,
   withSequence,
-  Easing,
 } from 'react-native-reanimated';
+import { useAuth } from '../../../context/AuthContext';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { userData, loading } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Mock data - replace with actual data from Firebase/context
-  const [userData, setUserData] = useState({
-    name: 'You',
-    level: 12,
-    title: 'Discipline Warrior',
-    titleEmoji: '🔒',
-    dayStreak: 7,
-    hasShield: true,
-    screenTime: 1.2,
-    screenTimeGoal: 2,
-    xpToday: 45,
-    sessionsToday: 3,
-    totalXP: 340,
-    badgesEarned: 4,
-  });
+  // Safe fallback if userData is null
+  if (!userData && !loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-slate-600">Loading user data...</Text>
+      </View>
+    );
+  }
+
+  // Safe access with defaults
+  const level = userData?.level || 1;
+  const title = userData?.title || 'Wanderer';
+  const titleEmoji = userData?.titleEmoji || '🌱';
+  const currentStreak = userData?.streak || 0;
+  const totalXP = userData?.totalXP || 0;
+  const currentXP = userData?.currentXP || 0;
+  const xpToNextLevel = userData?.xpToNextLevel || 100;
+  const screenTimeGoal = userData?.settings?.screenTimeGoal || 3;
+
+  // Calculate today's stats (these would come from your stats object in production)
+  const screenTimeToday = userData?.stats?.screenTimeToday || 0;
+  const xpToday = userData?.stats?.xpToday || 0;
+  const sessionsToday = userData?.stats?.sessionsToday || 0;
+  const badgesEarned = userData?.badges?.length || 0;
+
+  const screenTimeProgress = (screenTimeToday / screenTimeGoal) * 100;
+  const xpProgress = (currentXP / xpToNextLevel) * 100;
 
   const [dailyQuests, setDailyQuests] = useState([
     {
@@ -94,9 +107,6 @@ export default function HomeScreen() {
     router.push('/(tabs)/(home)/focus-session');
   };
 
-  const screenTimeProgress = (userData.screenTime / userData.screenTimeGoal) * 100;
-  const xpProgress = 20; // Mock progress for today's XP bar
-
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
@@ -128,12 +138,12 @@ export default function HomeScreen() {
               {/* Level Badge */}
               <View className="absolute left-4 top-4 rounded-full bg-white/25 px-4 py-1.5">
                 <Text className="text-xs font-bold text-white">
-                  Level {userData.level} {userData.titleEmoji}
+                  Level {level} {titleEmoji}
                 </Text>
               </View>
               {/* Streak Content */}
               <View className="mt-8 items-center">
-                <Text className="mb-1 text-7xl font-bold text-white">{userData.dayStreak}</Text>
+                <Text className="mb-1 text-7xl font-bold text-white">{currentStreak}</Text>
                 <View className="flex-row items-center gap-2">
                   <Text className="text-lg text-white opacity-95">Day Streak</Text>
                   <Animated.Text style={pulseStyle} className="text-2xl">
@@ -158,7 +168,7 @@ export default function HomeScreen() {
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm font-bold text-slate-700">Screen Time</Text>
                 <Text className="text-sm font-bold text-success-600">
-                  {userData.screenTime}h / {userData.screenTimeGoal}h
+                  {screenTimeToday.toFixed(1)}h / {screenTimeGoal}h
                 </Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-200">
@@ -173,7 +183,7 @@ export default function HomeScreen() {
             <View className="border-t border-slate-200 pt-4">
               <View className="mb-2 flex-row items-center justify-between">
                 <Text className="text-sm font-bold text-slate-700">XP Today</Text>
-                <Text className="text-sm font-bold text-primary-600">+{userData.xpToday} XP</Text>
+                <Text className="text-sm font-bold text-primary-600">+{xpToday} XP</Text>
               </View>
               <View className="h-2 overflow-hidden rounded-full bg-slate-200">
                 <View
@@ -246,17 +256,13 @@ export default function HomeScreen() {
             <View className="flex-row justify-between">
               <View className="flex-1">
                 <Text className="mb-1 text-xs text-warning-900">
-                  🎯 {userData.sessionsToday} sessions today
+                  🎯 {sessionsToday} sessions today
                 </Text>
-                <Text className="text-xs text-warning-900">
-                  🏆 {userData.badgesEarned} badges earned
-                </Text>
+                <Text className="text-xs text-warning-900">🏆 {badgesEarned} badges earned</Text>
               </View>
               <View className="flex-1 items-end">
-                <Text className="mb-1 text-xs text-warning-900">
-                  ⚡ {userData.totalXP} total XP
-                </Text>
-                <Text className="text-xs text-warning-900">📈 Level {userData.level}</Text>
+                <Text className="mb-1 text-xs text-warning-900">⚡ {totalXP} total XP</Text>
+                <Text className="text-xs text-warning-900">📈 Level {level}</Text>
               </View>
             </View>
           </View>

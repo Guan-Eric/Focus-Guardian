@@ -48,7 +48,7 @@ export default function PaywallScreen() {
 
         if (customerInfo.entitlements.active['premium']) {
           // User is now premium
-          router.replace('/(tabs)/(home)/home');
+          router.back();
         }
       }
     } catch (error: any) {
@@ -87,7 +87,7 @@ export default function PaywallScreen() {
         {/* Close Button */}
         <View className="flex-row justify-end px-6 pt-16">
           <TouchableOpacity
-            onPress={() => router.replace('/(tabs)/(home)/home')}
+            onPress={() => router.back()}
             className="h-10 w-10 items-center justify-center">
             <Text className="text-2xl text-slate-600">✕</Text>
           </TouchableOpacity>

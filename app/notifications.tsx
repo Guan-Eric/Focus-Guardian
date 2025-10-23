@@ -4,10 +4,33 @@ import { View, Text, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '../firebase';
+import { useAuth } from '../context/AuthContext';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [requesting, setRequesting] = useState(false);
+  const { user } = useAuth();
+
+  const completeOnboarding = async () => {
+    if (!user) return;
+
+    try {
+      // Mark onboarding as completed
+      await updateDoc(doc(db, 'users', user.uid), {
+        onboardingCompleted: true,
+        onboardingCompletedAt: new Date(),
+      });
+
+      // Navigate to home
+      router.push('/paywall');
+    } catch (error) {
+      console.error('Error completing onboarding:', error);
+      // Still navigate even if there's an error
+      router.push('/paywall');
+    }
+  };
 
   const requestNotificationPermission = async () => {
     setRequesting(true);
@@ -23,7 +46,7 @@ export default function NotificationsScreen() {
 
       if (finalStatus === 'granted') {
         // Navigate to next screen
-        router.push('/paywall');
+        await completeOnboarding();
       } else {
         Alert.alert('Notifications Disabled', 'You can enable them later in settings', [
           { text: 'OK', onPress: () => router.push('/paywall') },
@@ -110,7 +133,7 @@ export default function NotificationsScreen() {
           </LinearGradient>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/paywall')}>
+        <TouchableOpacity onPress={async () => await completeOnboarding()}>
           <Text className="text-center text-sm text-slate-500">I'll do this later</Text>
         </TouchableOpacity>
 

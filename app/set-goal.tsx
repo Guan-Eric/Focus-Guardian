@@ -1,13 +1,37 @@
 // app/onboarding/set-goal.tsx
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
+import { View, Text, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
+import { useAuth } from '../context/AuthContext';
+import { updateDoc, doc } from 'firebase/firestore';
+import { db } from '../firebase';
 
 export default function SetGoalScreen() {
   const router = useRouter();
-  const [screenTimeGoal, setScreenTimeGoal] = useState(3);
+  const { user } = useAuth();
+  const [screenTimeGoal, setScreenTimeGoal] = useState(2);
+  const [saving, setSaving] = useState(false);
+
+  const handleContinue = async () => {
+    if (!user) return;
+
+    setSaving(true);
+    try {
+      // Save the screen time goal
+      await updateDoc(doc(db, 'users', user.uid), {
+        'settings.screenTimeGoal': screenTimeGoal,
+      });
+
+      router.push('/why-lock-in');
+    } catch (error) {
+      console.error('Error saving goal:', error);
+      Alert.alert('Error', 'Failed to save goal. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <View className="flex-1 bg-white">
@@ -21,7 +45,7 @@ export default function SetGoalScreen() {
           <Text className="text-2xl text-slate-600">←</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push('/how-it-works')}>
+        <TouchableOpacity onPress={() => router.push('/why-lock-in')}>
           <Text className="text-base font-bold text-primary-500">Skip</Text>
         </TouchableOpacity>
       </View>
@@ -81,7 +105,7 @@ export default function SetGoalScreen() {
       {/* Bottom CTA */}
       <View className="px-8 pb-12">
         <TouchableOpacity
-          onPress={() => router.push('/how-it-works')}
+          onPress={handleContinue}
           activeOpacity={0.9}
           className="overflow-hidden rounded-[30px] shadow-lg">
           <LinearGradient
@@ -89,7 +113,11 @@ export default function SetGoalScreen() {
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ paddingVertical: 20 }}>
-            <Text className="text-center text-lg font-bold text-white">Continue</Text>
+            {saving ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text className="text-center text-lg font-bold text-white">Continue</Text>
+            )}
           </LinearGradient>
         </TouchableOpacity>
       </View>

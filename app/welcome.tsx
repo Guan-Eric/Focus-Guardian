@@ -1,6 +1,6 @@
 // app/onboarding/welcome.tsx
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StatusBar, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
@@ -11,9 +11,22 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import ToggleSwitch from '../components/ToggleSwitch';
+import { useAuth } from '../context/AuthContext';
 
 export default function WelcomeScreen() {
   const router = useRouter();
+  const { signIn } = useAuth();
+  const [signingIn, setSigningIn] = useState(false);
+
+  const handleGetStarted = async () => {
+    setSigningIn(true);
+    try {
+      await signIn();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to start. Please try again.');
+      setSigningIn(false);
+    }
+  };
 
   // Animation values
   const logoScale = useSharedValue(0);
@@ -92,15 +105,9 @@ export default function WelcomeScreen() {
         <Animated.View style={logoStyle} className="mb-8">
           <View className="items-center justify-center">
             {/* Slider Logo */}
-            <ToggleSwitch title="Get Started" onToggle={() => router.push('/set-goal')} />
+            <ToggleSwitch title="Get Started" onToggle={() => handleGetStarted()} />
           </View>
         </Animated.View>
-
-        {/* <TouchableOpacity onPress={() => router.push('/login')} className="mt-4">
-          <Text className="text-center text-sm text-slate-500">
-            Already have an account? <Text className="font-bold text-primary-500">Login</Text>
-          </Text>
-        </TouchableOpacity> */}
       </Animated.View>
     </View>
   );

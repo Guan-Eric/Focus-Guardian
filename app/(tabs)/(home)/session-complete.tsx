@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, StatusBar } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, StatusBar, Alert } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Animated, {
   useSharedValue,
@@ -13,6 +13,8 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import ConfettiCannon from 'react-native-confetti-cannon';
+import { useAuth } from '../../../context/AuthContext';
+import { RewardService } from '../../../services/rewardSystem';
 
 type MoodRating = 'hard' | 'okay' | 'good' | 'amazing';
 
@@ -22,8 +24,10 @@ export default function SessionComplete() {
     duration: string;
     xpEarned: string;
   }>();
+  const { userData, user } = useAuth();
 
-  const [selectedMood, setSelectedMood] = React.useState<MoodRating | null>(null);
+  const [selectedMood, setSelectedMood] = useState<MoodRating | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Animation values
   const celebrationScale = useSharedValue(0);
@@ -65,9 +69,24 @@ export default function SessionComplete() {
     console.log('Mood selected:', mood);
   };
 
-  const handleDone = () => {
-    // Save session data, update streak, etc.
-    router.push('/(tabs)/(home)/home');
+  const handleDone = async () => {
+    if (!user || !selectedMood) {
+      router.push('/(tabs)/(home)/home');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      // Save session to Firebase
+      await RewardService.recordSession(user.uid, Number(duration), selectedMood);
+
+      router.push('/(tabs)/(home)/home');
+    } catch (error) {
+      console.error('Error saving session:', error);
+      Alert.alert('Error', 'Failed to save session');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleStartAnother = () => {
@@ -75,10 +94,10 @@ export default function SessionComplete() {
   };
 
   const totalXP = Number(xpEarned) || 50;
-  const bonusXP = 5; // Streak bonus
-  const currentLevel = 12;
-  const currentXP = 340;
-  const nextLevelXP = 500;
+  const bonusXP = Math.floor(totalXP * 0.1);
+  const currentLevel = userData?.level || 1;
+  const currentXP = userData?.currentXP || 0;
+  const nextLevelXP = userData?.xpToNextLevel || 500;
   const progressPercent = Math.floor((currentXP / nextLevelXP) * 100);
 
   const moods: Array<{
@@ -235,17 +254,21 @@ export default function SessionComplete() {
         <View className="mx-6 mb-6 flex-row gap-3">
           <View className="flex-1 items-center rounded-xl border border-primary-100 bg-primary-50 p-4">
             <Text className="mb-1 text-xs text-primary-600">Sessions Today</Text>
-            <Text className="text-2xl font-bold text-primary-900">4</Text>
+            <Text className="text-2xl font-bold text-primary-900">
+              {userData?.stats?.sessionsToday || 0}
+            </Text>
           </View>
 
           <View className="flex-1 items-center rounded-xl border border-success-100 bg-success-50 p-4">
             <Text className="mb-1 text-xs text-success-600">Total Time</Text>
-            <Text className="text-2xl font-bold text-success-900">2.5h</Text>
+            <Text className="text-2xl font-bold text-success-900">
+              {((userData?.stats?.totalMinutes || 0) / 60).toFixed(1)}h
+            </Text>
           </View>
 
           <View className="flex-1 items-center rounded-xl border border-warning-100 bg-warning-50 p-4">
             <Text className="mb-1 text-xs text-warning-600">Streak</Text>
-            <Text className="text-2xl font-bold text-warning-900">7</Text>
+            <Text className="text-2xl font-bold text-warning-900">{userData?.streak || 0}d</Text>
           </View>
         </View>
       </ScrollView>
