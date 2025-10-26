@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StatusBar, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Animated, {
   useSharedValue,
@@ -9,30 +9,17 @@ import Animated, {
   withRepeat,
   withSequence,
 } from 'react-native-reanimated';
-import { useAuth } from '../../../context/AuthContext';
-
-type DailyQuest = {
-  id: string;
-  title: string;
-  xp: number;
-  completed: boolean;
-  progress?: number;
-};
+import { UserData } from '../../../types/user';
+import { AuthService } from '../../../services/authService';
+import { RewardService } from '../../../services/rewardSystem';
+import { auth } from '../../../firebase';
+import { DailyQuest } from '../../../types/rewards';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { userData, loading } = useAuth();
+  const [userData, setUserData] = useState<UserData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([]);
-
-  // Safe fallback if userData is null
-  if (!userData && !loading) {
-    return (
-      <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-600">Loading user data...</Text>
-      </View>
-    );
-  }
 
   // Safe access with defaults
   const level = userData?.level || 1;
@@ -64,69 +51,39 @@ export default function HomeScreen() {
 
   const screenTimeProgress = (screenTimeToday / screenTimeGoal) * 100;
   const xpProgress = (currentXP / xpToNextLevel) * 100;
-
-  // Generate dynamic daily quests based on user data
   useEffect(() => {
-    if (!userData) return;
+    const fetchDailyQuests = async () => {
+      if (!userData) return;
 
-    const quests: DailyQuest[] = [];
+      // Get daily quests
+      const quests = await RewardService.generateDailyQuests(auth.currentUser?.uid as string);
 
-    // Quest 1: Complete a focus session (30+ minutes)
-    const hasCompletedSession = sessionsToday > 0;
-    quests.push({
-      id: 'session',
-      title: 'Complete 30-min focus session',
-      xp: 20,
-      completed: hasCompletedSession,
-    });
+      // Check if a quest is completed and award XP
+      const result = await RewardService.checkDailyQuestCompletion(
+        auth.currentUser?.uid as string,
+        'session-30min'
+      );
 
-    // Quest 2: Stay under screen time goal
-    const screenTimePercent = (screenTimeToday / screenTimeGoal) * 100;
-    const stayedUnderGoal = screenTimeToday <= screenTimeGoal;
-    quests.push({
-      id: 'screentime',
-      title: 'Stay under screen time goal',
-      xp: 50,
-      completed: stayedUnderGoal && screenTimeToday > 0,
-      progress: Math.min(screenTimePercent, 100),
-    });
+      const incompleteQuests = quests.filter((q) => !q.completed);
+      const completeQuests = quests.filter((q) => q.completed);
+      const displayQuests = [...incompleteQuests, ...completeQuests];
 
-    // Quest 3: Complete 3 sessions in a day
-    const completedThreeSessions = sessionsToday >= 3;
-    quests.push({
-      id: 'three-sessions',
-      title: 'Complete 3 focus sessions',
-      xp: 35,
-      completed: completedThreeSessions,
-      progress: (sessionsToday / 3) * 100,
-    });
-
-    // Quest 4: Earn 100 XP today
-    const earned100XP = xpToday >= 100;
-    quests.push({
-      id: 'xp-goal',
-      title: 'Earn 100 XP today',
-      xp: 25,
-      completed: earned100XP,
-      progress: (xpToday / 100) * 100,
-    });
-
-    // Quest 5: Maintain your streak
-    const maintainedStreak = currentStreak > 0 && sessionsToday > 0;
-    quests.push({
-      id: 'streak',
-      title: `Maintain your ${currentStreak}-day streak`,
-      xp: 15,
-      completed: maintainedStreak,
-    });
-
-    // Only show 3 quests at a time - prioritize incomplete ones
-    const incompleteQuests = quests.filter((q) => !q.completed);
-    const completeQuests = quests.filter((q) => q.completed);
-    const displayQuests = [...incompleteQuests, ...completeQuests];
-
-    setDailyQuests(displayQuests);
+      setDailyQuests(displayQuests);
+    };
+    fetchDailyQuests();
   }, [userData, sessionsToday, screenTimeToday, xpToday, currentStreak, screenTimeGoal]);
+  const fetchUserData = async () => {
+    const userData = await AuthService.getCurrentUserData();
+    setUserData(userData);
+  };
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  useFocusEffect(() => {
+    fetchUserData();
+  });
 
   // Animations
   const pulseScale = useSharedValue(1);
@@ -346,7 +303,7 @@ export default function HomeScreen() {
                     className={`text-xs font-bold ${
                       quest.completed ? 'text-success-600' : 'text-slate-600'
                     }`}>
-                    {quest.completed ? '✓ ' : ''}+{quest.xp} XP
+                    {quest.completed ? '✓ ' : ''}+{quest.xpReward} XP
                   </Text>
                 </View>
               </View>

@@ -13,8 +13,6 @@ export async function completeOnboarding(userId: string): Promise<void> {
       onboardingCompleted: true,
     });
 
-    console.log('Onboarding completed for user:', userId);
-
     // Navigate to home
     router.replace('/(tabs)/(home)/home');
   } catch (error) {

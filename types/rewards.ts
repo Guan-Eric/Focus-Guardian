@@ -60,3 +60,20 @@ export type XPSource = {
   timestamp: Date;
   multiplier?: number;
 };
+
+export type DailyQuest = {
+  id: string;
+  title: string;
+  description: string;
+  type: 'daily';
+  difficulty: 'easy' | 'medium' | 'hard';
+  xpReward: number;
+  requirement: {
+    type: 'session' | 'screenTime' | 'streak' | 'xp' | 'sessions_count';
+    target: number;
+    current: number;
+  };
+  completed: boolean;
+  progress?: number;
+  expiresAt: Date;
+};

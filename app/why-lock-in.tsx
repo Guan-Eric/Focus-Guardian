@@ -17,8 +17,7 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useAuth } from '../context/AuthContext';
+import { auth, db } from '../firebase';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Reason = {
@@ -31,7 +30,6 @@ type Reason = {
 
 export default function WhyLockInScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -88,12 +86,14 @@ export default function WhyLockInScreen() {
   };
 
   const handleContinue = async () => {
-    if (!user) return;
-
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User is not authenticated');
+    }
     setSaving(true);
     try {
       // Save the screen time goal
-      await updateDoc(doc(db, 'users', user.uid), {
+      await updateDoc(doc(db, 'users', userId), {
         reason: selectedReasons,
       });
 

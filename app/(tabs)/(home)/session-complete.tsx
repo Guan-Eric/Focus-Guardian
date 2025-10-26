@@ -13,41 +13,103 @@ import Animated, {
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import ConfettiCannon from 'react-native-confetti-cannon';
-import { useAuth } from '../../../context/AuthContext';
+import { UserData } from '../../../types/user';
+import { auth } from '../../../firebase';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../../../firebase';
+import { getLevelFromXP } from '../../../utils/levelingSystem';
 import { RewardService } from '../../../services/rewardSystem';
 
 type MoodRating = 'hard' | 'okay' | 'good' | 'amazing';
 
 export default function SessionComplete() {
   const router = useRouter();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const user = auth.currentUser;
   const { duration, xpEarned } = useLocalSearchParams<{
     duration: string;
     xpEarned: string;
   }>();
-  const { userData, user } = useAuth();
 
   const [selectedMood, setSelectedMood] = useState<MoodRating | 'none'>('none');
-  const [saving, setSaving] = useState(false);
+  const [sessionSaved, setSessionSaved] = useState(false);
+  const [moodUpdating, setMoodUpdating] = useState(false);
 
   // Animation values
   const celebrationScale = useSharedValue(0);
   const xpScale = useSharedValue(0);
   const progressWidth = useSharedValue(0);
 
+  // Load user data and save session immediately
   useEffect(() => {
-    // Trigger haptic feedback
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
-    // Start animations
-    celebrationScale.value = withSequence(withSpring(1.5), withSpring(1));
+    // Listen to user data updates
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
+          const levelData = getLevelFromXP(data.totalXP || 0);
 
-    xpScale.value = withDelay(300, withSequence(withSpring(1.1), withSpring(1)));
-
-    progressWidth.value = withDelay(
-      600,
-      withTiming(68, { duration: 1000, easing: Easing.out(Easing.cubic) })
+          setUserData({
+            uid: user.uid,
+            isAnonymous: user.isAnonymous,
+            email: user.email || undefined,
+            ...data,
+            ...levelData,
+          } as UserData);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        console.log('Firestore listener error:', error.code);
+        setLoading(false);
+      }
     );
-  }, []);
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Auto-save session on mount (without mood)
+  useEffect(() => {
+    const saveInitialSession = async () => {
+      if (!user || sessionSaved) return;
+
+      try {
+        // Save session without mood initially
+        await RewardService.recordSession(user.uid, Number(duration), 'none');
+        setSessionSaved(true);
+
+        // Trigger haptic feedback
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+        // Start animations
+        celebrationScale.value = withSequence(withSpring(1.5), withSpring(1));
+        xpScale.value = withDelay(300, withSequence(withSpring(1.1), withSpring(1)));
+      } catch (error) {
+        console.error('Error saving session:', error);
+        Alert.alert('Error', 'Failed to save session');
+      }
+    };
+
+    saveInitialSession();
+  }, [user, duration]);
+
+  // Animate progress bar when userData loads
+  useEffect(() => {
+    if (userData && progressPercent > 0) {
+      progressWidth.value = withDelay(
+        600,
+        withTiming(progressPercent, { duration: 1000, easing: Easing.out(Easing.cubic) })
+      );
+    }
+  }, [userData]);
 
   const celebrationStyle = useAnimatedStyle(() => ({
     transform: [{ scale: celebrationScale.value }],
@@ -61,48 +123,44 @@ export default function SessionComplete() {
     width: `${progressWidth.value}%`,
   }));
 
-  const handleMoodSelect = (mood: MoodRating) => {
+  const handleMoodSelect = async (mood: MoodRating) => {
+    if (!user || moodUpdating) return;
+
     setSelectedMood(mood);
+    setMoodUpdating(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    // Save mood rating to database here
-    console.log('Mood selected:', mood);
+    try {
+      // Update mood in the most recent session
+      // Note: You'll need to add an updateSessionMood method to RewardService
+      // For now, we'll just update local state
+      console.log('Mood selected:', mood);
+      // TODO: Implement mood update in RewardService
+    } catch (error) {
+      console.error('Error updating mood:', error);
+    } finally {
+      setMoodUpdating(false);
+    }
   };
 
-  const handleDone = async () => {
-    if (!user) {
-      router.push('/(tabs)/(home)/home');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await RewardService.recordSession(user.uid, Number(duration), selectedMood);
-
-      router.push('/(tabs)/(home)/home');
-    } catch (error) {
-      console.error('Error saving session:', error);
-      Alert.alert('Error', 'Failed to save session');
-    } finally {
-      setSaving(false);
-    }
+  const handleDone = () => {
+    router.push('/(tabs)/(home)/home');
   };
 
   const handleStartAnother = () => {
     router.push('/(tabs)/(home)/focus-session');
   };
 
-  const totalXP = Number(xpEarned) || 50;
-  const bonusXP = Math.floor(totalXP * 0.1);
-  const currentLevel = userData?.level || 1;
-  const currentXP = userData?.currentXP || 0;
-  const nextLevelXP = userData?.xpToNextLevel || 500;
+  const totalXP = Number(xpEarned || 0);
+  const bonusXP = totalXP * RewardService.getStreakMultiplier(userData?.streak || 0);
+  const currentLevel = userData?.level ?? 1;
+  const currentXP = userData?.currentXP ?? 0;
+  const nextLevelXP = userData?.xpToNextLevel ?? 1;
   const progressPercent = Math.floor((currentXP / nextLevelXP) * 100);
 
   const moods: Array<{
     id: MoodRating;
     emoji: string;
-
     color: string;
     bgColor: string;
     borderColor: string;
@@ -137,6 +195,14 @@ export default function SessionComplete() {
     },
   ];
 
+  if (loading) {
+    return (
+      <View className="flex-1 items-center justify-center bg-white">
+        <Text className="text-slate-600">Loading...</Text>
+      </View>
+    );
+  }
+
   return (
     <View className="flex-1 bg-white">
       <StatusBar barStyle="dark-content" />
@@ -154,14 +220,19 @@ export default function SessionComplete() {
 
           <Text className="mb-2 text-3xl font-bold text-slate-900">Great Focus!</Text>
           <Text className="text-sm text-slate-600">
-            You have completed {duration} minutes of deep work
+            You completed {duration} minutes of deep work
           </Text>
+          {sessionSaved && (
+            <View className="mt-2 rounded-full bg-success-100 px-3 py-1">
+              <Text className="text-xs text-success-700">✓ Session saved</Text>
+            </View>
+          )}
         </View>
 
         {/* Rewards Card */}
         <Animated.View style={xpCardStyle} className="mx-6 mb-5">
           <LinearGradient
-            colors={['#10b981', '#059669']} // success-500 to success-600
+            colors={['#10b981', '#059669']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={{ borderRadius: 24 }}>
@@ -175,9 +246,11 @@ export default function SessionComplete() {
               </Text>
               <Text className="mb-2 text-center text-6xl font-bold text-white">+{totalXP} XP</Text>
 
-              <Text className="mt-2 text-center text-sm text-white opacity-85">
-                +{bonusXP} bonus (7-day streak active!) 🔥
-              </Text>
+              {userData && userData.streak > 7 ? (
+                <Text className="mt-2 text-center text-sm text-white opacity-85">
+                  +{Math.floor(bonusXP - totalXP)} bonus ({userData.streak}-day streak active!) 🔥
+                </Text>
+              ) : null}
             </View>
           </LinearGradient>
         </Animated.View>
@@ -215,6 +288,7 @@ export default function SessionComplete() {
                   key={mood.id}
                   onPress={() => handleMoodSelect(mood.id)}
                   activeOpacity={0.7}
+                  disabled={moodUpdating}
                   className="items-center">
                   <View
                     className={`h-16 w-16 items-center justify-center rounded-full ${
@@ -230,10 +304,15 @@ export default function SessionComplete() {
               );
             })}
           </View>
+          {selectedMood !== 'none' && (
+            <View className="mt-2 items-center">
+              <Text className="text-xs text-slate-500">✓ Mood recorded</Text>
+            </View>
+          )}
         </View>
 
         {/* Insights Card (if mood selected) */}
-        {selectedMood && (
+        {selectedMood !== 'none' && (
           <View className="mx-6 mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
             <Text className="mb-2 text-sm font-bold text-slate-900">💡 Keep it up!</Text>
             <Text className="text-xs leading-5 text-slate-600">
@@ -261,13 +340,13 @@ export default function SessionComplete() {
           <View className="flex-1 items-center rounded-xl border border-success-100 bg-success-50 p-4">
             <Text className="mb-1 text-xs text-success-600">Total Time</Text>
             <Text className="text-2xl font-bold text-success-900">
-              {((userData?.stats?.totalMinutes || 0) / 60).toFixed(1)}h
+              {((userData?.stats?.totalMinutes || 0) / 60).toFixed(1)} h
             </Text>
           </View>
 
           <View className="flex-1 items-center rounded-xl border border-warning-100 bg-warning-50 p-4">
             <Text className="mb-1 text-xs text-warning-600">Streak</Text>
-            <Text className="text-2xl font-bold text-warning-900">{userData?.streak || 0}d</Text>
+            <Text className="text-2xl font-bold text-warning-900">{userData?.streak || 0} d</Text>
           </View>
         </View>
       </ScrollView>

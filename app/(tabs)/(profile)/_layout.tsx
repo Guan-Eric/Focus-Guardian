@@ -17,11 +17,11 @@ export default function SettingsLayout() {
       />
       <Stack.Screen
         name="account"
-        options={{ headerShown: false, gestureEnabled: false, animation: 'slide_from_right' }}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
       />
       <Stack.Screen
         name="daily-goal"
-        options={{ headerShown: false, gestureEnabled: false, animation: 'slide_from_right' }}
+        options={{ headerShown: false, animation: 'slide_from_right' }}
       />
     </Stack>
   );

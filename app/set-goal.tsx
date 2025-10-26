@@ -4,23 +4,22 @@ import { View, Text, TouchableOpacity, StatusBar, Alert, ActivityIndicator } fro
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
-import { useAuth } from '../context/AuthContext';
 import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
 
 export default function SetGoalScreen() {
   const router = useRouter();
-  const { user } = useAuth();
   const [screenTimeGoal, setScreenTimeGoal] = useState(2);
   const [saving, setSaving] = useState(false);
 
   const handleContinue = async () => {
-    if (!user) return;
-
     setSaving(true);
     try {
-      // Save the screen time goal
-      await updateDoc(doc(db, 'users', user.uid), {
+      const userId = auth.currentUser?.uid;
+      if (!userId) {
+        throw new Error('User is not authenticated');
+      }
+      await updateDoc(doc(db, 'users', userId), {
         'settings.screenTimeGoal': screenTimeGoal,
       });
 

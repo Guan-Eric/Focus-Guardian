@@ -8,14 +8,12 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { completeOnboarding } from '../utils/onboarding';
 import { auth } from '../firebase';
 
 export default function PaywallScreen() {
-  const router = useRouter();
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loading, setLoading] = useState(true);
   const [purchasing, setPurchasing] = useState(false);

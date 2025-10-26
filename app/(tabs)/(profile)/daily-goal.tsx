@@ -1,18 +1,29 @@
 // app/onboarding/set-goal.tsx
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StatusBar, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import Slider from '@react-native-community/slider';
-import { useAuth } from '../../../context/AuthContext';
 import { updateDoc, doc } from 'firebase/firestore';
-import { db } from '../../../firebase';
+import { auth, db } from '../../../firebase';
+import { UserData } from '../../../types/user';
+import { AuthService } from '../../../services/authService';
 
 export default function DDailyGoalScreen() {
   const router = useRouter();
-  const { user, userData } = useAuth();
-  const [screenTimeGoal, setScreenTimeGoal] = useState(userData?.settings.screenTimeGoal);
+  const user = auth.currentUser;
+  const [screenTimeGoal, setScreenTimeGoal] = useState<number>(3);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user) {
+        const data = (await AuthService.getCurrentUserData()) as UserData;
+        setScreenTimeGoal(data.settings.screenTimeGoal);
+      }
+    };
+    fetchUserData();
+  }, []);
 
   const handleContinue = async () => {
     if (!user) return;
@@ -43,10 +54,6 @@ export default function DDailyGoalScreen() {
           onPress={() => router.back()}
           className="h-10 w-10 items-center justify-center">
           <Text className="text-2xl text-slate-600">←</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity onPress={() => router.push('/why-lock-in')}>
-          <Text className="text-base font-bold text-primary-500">Skip</Text>
         </TouchableOpacity>
       </View>
 

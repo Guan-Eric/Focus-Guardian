@@ -1,5 +1,5 @@
-// app/index.tsx - Simplest and Most Reliable
-import { View, ActivityIndicator } from 'react-native';
+// app/index.tsx
+import { View, ActivityIndicator, InteractionManager } from 'react-native';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
@@ -8,51 +8,55 @@ import { auth, db } from '../firebase';
 
 function Index() {
   const [loading, setLoading] = useState(true);
-
+  // Single auth listener for routing only
   const unsubscribe = async () => {
     onAuthStateChanged(auth, async (user) => {
       try {
         if (!user) {
-          // No user - go to welcome
-          console.log('No user, redirecting to welcome');
-          router.replace('/welcome');
-          setLoading(false);
+          // No user - navigate after interactions complete
+          InteractionManager.runAfterInteractions(() => {
+            router.replace('/welcome');
+            setLoading(false);
+          });
           return;
         }
 
         // User exists - check onboarding status
-        console.log('User found:', user.uid);
         const userRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userRef);
 
         if (userDoc.exists()) {
           const userData = userDoc.data();
-          console.log('Onboarding status:', userData.onboardingCompleted);
 
-          if (userData.onboardingCompleted) {
-            // Onboarding complete - go to home
-            router.replace('/(tabs)/(home)/home');
-          } else {
-            // Onboarding not complete - go to set goal
-            router.replace('/set-goal');
-          }
+          InteractionManager.runAfterInteractions(() => {
+            if (userData.onboardingCompleted) {
+              router.replace('/(tabs)/(home)/home');
+            } else {
+              router.replace('/set-goal');
+            }
+            setLoading(false);
+          });
         } else {
-          // User document doesn't exist yet - go to onboarding
-          console.log('No user document, going to onboarding');
-          router.replace('/set-goal');
+          // No document - go to onboarding
+          InteractionManager.runAfterInteractions(() => {
+            router.replace('/set-goal');
+            setLoading(false);
+          });
         }
       } catch (error) {
         console.error('Error in auth check:', error);
-        // On error, default to welcome
-        router.replace('/welcome');
-      } finally {
-        setLoading(false);
+        InteractionManager.runAfterInteractions(() => {
+          router.replace('/welcome');
+          setLoading(false);
+        });
       }
     });
   };
-
   useEffect(() => {
-    unsubscribe();
+    const fetchData = async () => {
+      await unsubscribe();
+    };
+    fetchData();
   }, []);
 
   if (loading) {
@@ -63,7 +67,6 @@ function Index() {
     );
   }
 
-  // Return null after navigation completes
   return null;
 }
 

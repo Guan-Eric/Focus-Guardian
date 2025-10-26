@@ -6,9 +6,11 @@ import {
   linkWithCredential,
   EmailAuthProvider,
   updateProfile,
+  signInWithCredential,
 } from 'firebase/auth';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import { credential } from 'firebase-admin';
 
 export class AuthService {
   // Sign in anonymously
@@ -27,6 +29,19 @@ export class AuthService {
     }
   }
 
+  // Sign in with email
+  static async signInWithEmail(email: string, password: string): Promise<User> {
+    try {
+      const credential = EmailAuthProvider.credential(email, password);
+      const userCredential = await signInWithCredential(auth, credential);
+      const user = userCredential.user;
+
+      return user;
+    } catch (error: any) {
+      console.error('Email sign in error:', error);
+      throw new Error('Failed to sign in: ' + error.message);
+    }
+  }
   // Create initial user document in Firestore
   static async createUserDocument(userId: string): Promise<void> {
     const userRef = doc(db, 'users', userId);
@@ -88,8 +103,6 @@ export class AuthService {
         levelHistory: [],
         unlockedRewards: [],
       });
-
-      console.log('User document created for:', userId);
     }
   }
 

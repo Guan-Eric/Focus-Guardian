@@ -1,26 +1,75 @@
-// app/(tabs)/profile.tsx
+// app/(tabs)/profile.tsx - No Context Version
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Switch, Alert } from 'react-native';
-import { useAuth } from '../../../context/AuthContext';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  Switch,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../../firebase';
+import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../../../firebase';
+import { AuthService } from '../../../services/authService';
+import { getLevelFromXP } from '../../../utils/levelingSystem';
+import { UserData } from '../../../types/user';
 
 export default function ProfileScreen() {
-  const { userData, user, signOut, linkEmail } = useAuth();
   const router = useRouter();
+  const [userData, setUserData] = useState<UserData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const [notifications, setNotifications] = useState(userData?.settings?.notifications ?? true);
-  const [dailyCheckIn, setDailyCheckIn] = useState(userData?.settings?.dailyCheckIn ?? true);
+  const user = auth.currentUser;
 
-  // Update local state when userData changes
+  const [notifications, setNotifications] = useState(true);
+  const [dailyCheckIn, setDailyCheckIn] = useState(true);
+
+  // Listen to user data
   useEffect(() => {
-    if (userData?.settings) {
-      setNotifications(userData.settings.notifications ?? true);
-      setDailyCheckIn(userData.settings.dailyCheckIn ?? true);
+    if (!user) {
+      setLoading(false);
+      setUserData(null);
+      return;
     }
-  }, [userData?.settings]);
+
+    const userRef = doc(db, 'users', user.uid);
+    const unsubscribe = onSnapshot(
+      userRef,
+      (docSnapshot) => {
+        if (docSnapshot.exists()) {
+          const data = docSnapshot.data();
+          const levelData = getLevelFromXP(data.totalXP || 0);
+
+          // Combine Firestore data with calculated level data
+          setUserData({
+            uid: user.uid,
+            isAnonymous: user.isAnonymous,
+            email: user.email || undefined,
+            ...data,
+            ...levelData,
+          } as UserData);
+
+          setNotifications(data.settings?.notifications ?? true);
+          setDailyCheckIn(data.settings?.dailyCheckIn ?? true);
+        }
+        setLoading(false);
+      },
+      (error) => {
+        // Handle errors (like permission denied after sign out)
+        console.error('Firestore listener error:', error.code);
+        if (error.code === 'permission-denied') {
+          // User signed out, stop trying to access data
+          setUserData(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
 
   const handleToggleNotifications = async (value: boolean) => {
     setNotifications(value);
@@ -31,7 +80,6 @@ export default function ProfileScreen() {
         });
       } catch (error) {
         console.error('Error updating notifications:', error);
-        // Revert on error
         setNotifications(!value);
       }
     }
@@ -46,7 +94,6 @@ export default function ProfileScreen() {
         });
       } catch (error) {
         console.error('Error updating daily check-in:', error);
-        // Revert on error
         setDailyCheckIn(!value);
       }
     }
@@ -60,7 +107,8 @@ export default function ProfileScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await signOut();
+            await AuthService.signOut();
+            // index.tsx will handle navigation
           } catch (error) {
             console.error('Sign out error:', error);
             Alert.alert('Error', 'Failed to sign out. Please try again.');
@@ -90,7 +138,7 @@ export default function ProfileScreen() {
                     onPress: async (password?: string) => {
                       if (password && password.length >= 6) {
                         try {
-                          await linkEmail(email, password);
+                          await AuthService.linkWithEmail(email, password);
                           Alert.alert('Success', 'Account linked successfully!');
                         } catch (error: any) {
                           Alert.alert('Error', error.message);
@@ -111,11 +159,10 @@ export default function ProfileScreen() {
     );
   };
 
-  // Don't render if no user data
-  if (!userData) {
+  if (loading || !userData || !user) {
     return (
       <View className="flex-1 items-center justify-center bg-white">
-        <Text className="text-slate-400">Loading...</Text>
+        <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
@@ -141,7 +188,7 @@ export default function ProfileScreen() {
                 <Text className="text-5xl">{userData.titleEmoji || '🌱'}</Text>
               </View>
               <Text className="text-xl font-bold text-white">
-                {userData.email || 'Anonymous User'}
+                {userData.email || user.email || 'Anonymous User'}
               </Text>
               <Text className="mt-1 text-sm text-white opacity-90">
                 {userData.title} • Level {userData.level}
@@ -169,7 +216,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Anonymous Account Warning */}
-        {user?.isAnonymous && (
+        {user.isAnonymous && (
           <View className="mx-6 mb-6">
             <TouchableOpacity
               onPress={handleLinkAccount}

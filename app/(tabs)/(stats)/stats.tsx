@@ -1,22 +1,25 @@
 // app/(tabs)/stats.tsx
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { useAuth } from '../../../context/AuthContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { useFocusEffect } from 'expo-router';
+import { AuthService } from '../../../services/authService';
+import { UserData } from '../../../types/user';
 
 type TimePeriod = 'week' | 'month' | 'year' | 'all';
 
 export default function StatsScreen() {
-  const { userData, loading } = useAuth();
-  useFocusEffect(
-    useCallback(() => {
-      if (!loading) {
-        // Optionally perform any actions needed to refresh userData
-      }
-    }, [loading])
-  );
+  const [userData, setUserData] = useState<UserData | null>(null);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const data = await AuthService.getCurrentUserData();
+      setUserData(data);
+    };
+    fetchUserData();
+  }, []);
+
   const [selectedPeriod, setSelectedPeriod] = useState<TimePeriod>('week');
 
   const screenWidth = Dimensions.get('window').width;

@@ -5,20 +5,21 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Notifications from 'expo-notifications';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import { useAuth } from '../context/AuthContext';
+import { auth, db } from '../firebase';
 
 export default function NotificationsScreen() {
   const router = useRouter();
   const [requesting, setRequesting] = useState(false);
-  const { user } = useAuth();
 
   const completeOnboarding = async () => {
-    if (!user) return;
+    const userId = auth.currentUser?.uid;
+    if (!userId) {
+      throw new Error('User is not authenticated');
+    }
 
     try {
       // Mark onboarding as completed
-      await updateDoc(doc(db, 'users', user.uid), {
+      await updateDoc(doc(db, 'users', userId), {
         onboardingCompleted: true,
         onboardingCompletedAt: new Date(),
       });

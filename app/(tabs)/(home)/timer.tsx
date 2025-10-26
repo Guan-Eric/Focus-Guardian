@@ -10,7 +10,8 @@ import Animated, {
 import Svg, { Circle } from 'react-native-svg';
 import ExitButton from '../../../components/ExitButton';
 import { getStreakMultiplier } from '../../../utils/xpSystem';
-import { useAuth } from '../../../context/AuthContext';
+import { UserData } from '../../../types/user';
+import { AuthService } from '../../../services/authService';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -21,8 +22,7 @@ const CIRCLE_CIRCUMFERENCE = 2 * Math.PI * TIMER_CIRCLE_RADIUS;
 export default function ActiveSession() {
   const router = useRouter();
   const { duration } = useLocalSearchParams();
-  const { userData, user } = useAuth();
-
+  const [userData, setUserData] = useState<UserData | null>(null);
   const totalSeconds = Number(duration) * 60;
   const [timeLeft, setTimeLeft] = useState(totalSeconds);
   const [xpEarned, setXpEarned] = useState(0);
@@ -33,6 +33,11 @@ export default function ActiveSession() {
   const progress = useSharedValue(1);
 
   useEffect(() => {
+    const fetchData = async () => {
+      const userData = await AuthService.getCurrentUserData();
+      setUserData(userData);
+    };
+    fetchData();
     intervalRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {

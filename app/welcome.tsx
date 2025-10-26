@@ -11,17 +11,16 @@ import Animated, {
   withDelay,
 } from 'react-native-reanimated';
 import ToggleSwitch from '../components/ToggleSwitch';
-import { useAuth } from '../context/AuthContext';
+import { AuthService } from '../services/authService';
 
 export default function WelcomeScreen() {
   const router = useRouter();
-  const { signIn } = useAuth();
   const [signingIn, setSigningIn] = useState(false);
 
   const handleGetStarted = async () => {
     setSigningIn(true);
     try {
-      await signIn();
+      await AuthService.signInAnonymous();
     } catch (error) {
       Alert.alert('Error', 'Failed to start. Please try again.');
       setSigningIn(false);
