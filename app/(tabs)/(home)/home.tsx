@@ -15,6 +15,7 @@ import { RewardService } from '../../../services/rewardSystem';
 import { auth } from '../../../firebase';
 import { DailyQuest } from '../../../types/rewards';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { getLevelFromXP } from '../../../utils/levelingSystem';
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -22,14 +23,17 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [dailyQuests, setDailyQuests] = useState<DailyQuest[]>([]);
 
-  // Safe access with defaults
-  const level = userData?.level || 1;
-  const title = userData?.title || 'Wanderer';
-  const titleEmoji = userData?.titleEmoji || '🌱';
-  const currentStreak = userData?.streak || 0;
+  // Calculate level data from totalXP
   const totalXP = userData?.totalXP || 0;
-  const currentXP = userData?.totalXP || 0;
-  const xpToNextLevel = userData?.xpToNextLevel || 100;
+  const levelData = getLevelFromXP(totalXP);
+
+  const level = levelData.level;
+  const title = levelData.title;
+  const titleEmoji = levelData.titleEmoji;
+  const currentXP = levelData.currentXP;
+  const xpToNextLevel = levelData.xpToNextLevel;
+
+  const currentStreak = userData?.streak || 0;
   const screenTimeGoal = userData?.settings?.screenTimeGoal || 3;
 
   // Real stats from userData
@@ -52,6 +56,7 @@ export default function HomeScreen() {
 
   const screenTimeProgress = (screenTimeToday / screenTimeGoal) * 100;
   const xpProgress = (currentXP / xpToNextLevel) * 100;
+
   useEffect(() => {
     const fetchDailyQuests = async () => {
       if (!userData) return;
@@ -74,6 +79,7 @@ export default function HomeScreen() {
     };
     fetchDailyQuests();
   }, [sessionsToday, screenTimeToday, xpToday, currentStreak, screenTimeGoal]);
+
   const fetchUserData = async () => {
     const userData = await AuthService.getCurrentUserData();
     setUserData(userData);
@@ -112,7 +118,7 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // The AuthContext listener will automatically update userData
+    await fetchUserData();
     setTimeout(() => {
       setRefreshing(false);
     }, 1000);

@@ -228,10 +228,12 @@ export class RewardService {
       if (leveledUp) {
         result.newLevel = newLevelData.level;
 
+        // Update all level-related fields in Firestore
         await updateDoc(userRef, {
           level: newLevelData.level,
           title: newLevelData.title,
           titleEmoji: newLevelData.titleEmoji,
+          xpToNextLevel: newLevelData.xpToNextLevel,
           levelHistory: arrayUnion({
             level: newLevelData.level,
             achievedAt: Timestamp.now(),
@@ -443,7 +445,7 @@ export class RewardService {
     );
 
     const snapshot = await getDocs(q);
-    console.log('seassions', snapshot.size);
+    console.log('sessions', snapshot.size);
     return snapshot.size === 0;
   }
 

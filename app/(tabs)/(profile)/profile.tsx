@@ -256,7 +256,7 @@ export default function ProfileScreen() {
           </LinearGradient>
         </View>
 
-        {/* Anonymous Account Warning */}
+        {/* Anonymous Account Warning 
         {user.isAnonymous && (
           <View className="mx-6 mb-6">
             <TouchableOpacity
@@ -350,7 +350,7 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Premium Section */}
+        {/* Premium Section 
         <View className="mb-4 px-6">
           <TouchableOpacity onPress={() => router.push('/paywall')} activeOpacity={0.9}>
             <LinearGradient
@@ -369,7 +369,7 @@ export default function ProfileScreen() {
               </View>
             </LinearGradient>
           </TouchableOpacity>
-        </View>
+        </View>*/}
 
         {/* More Section */}
         <View className="mb-4 px-6">
@@ -409,12 +409,12 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        {/* Sign Out */}
+        {/*Sign Out 
         <View className="mb-24 px-6">
           <TouchableOpacity onPress={handleSignOut} className="rounded-2xl bg-slate-100 p-4">
             <Text className="text-center text-sm font-bold text-slate-900">Sign Out</Text>
           </TouchableOpacity>
-        </View>
+        </View> */}
       </ScrollView>
     </View>
   );
