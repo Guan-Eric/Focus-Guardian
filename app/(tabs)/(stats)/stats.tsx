@@ -115,7 +115,7 @@ export default function StatsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           {/* Header */}
-          <View className="px-6 pb-4 pt-16">
+          <View className="px-6 pb-4">
             <Text className="text-2xl font-bold text-slate-900">Your Progress</Text>
           </View>
 

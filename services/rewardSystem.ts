@@ -39,6 +39,7 @@ export class RewardService {
 
       const quests: DailyQuest[] = [];
 
+      // Quest 1: Complete focus sessions (at least 30 minutes combined)
       quests.push({
         id: 'session-30min',
         title: 'Complete 30 minutes of focus sessions',
@@ -101,6 +102,7 @@ export class RewardService {
     }
   }
 
+  // Get total minutes of sessions completed today
   private static async getTodaySessionMinutes(userId: string): Promise<number> {
     try {
       const today = new Date();
@@ -144,6 +146,7 @@ export class RewardService {
         return { completed: true, xpAwarded: 0, alreadyAwarded: true };
       }
 
+      // Mark quest as completed
       await updateDoc(userRef, {
         [`dailyQuestsCompleted.${todayKey}`]: arrayUnion(questId),
         'stats.questsCompleted': increment(1),
@@ -182,27 +185,46 @@ export class RewardService {
       const newLevelData = getLevelFromXP(newTotalXP);
       const leveledUp = newLevelData.level > oldLevel;
 
+      // Create XP history entry
+      const xpHistoryEntry: any = {
+        amount,
+        source,
+        timestamp: Timestamp.now(),
+      };
+
+      // Only add metadata if it exists and has values
+      if (metadata && Object.keys(metadata).length > 0) {
+        xpHistoryEntry.metadata = metadata;
+      }
+
+      // Update user XP and xpToday
       await updateDoc(userRef, {
         totalXP: increment(amount),
         'stats.xpToday': increment(amount),
-        xpHistory: arrayUnion({
-          amount,
-          source,
-          timestamp: Timestamp.now(),
-          metadata,
-        }),
+        xpHistory: arrayUnion(xpHistoryEntry),
       });
 
-      await setDoc(doc(collection(db, 'xpTransactions')), {
+      // Log XP transaction
+      const transactionData: any = {
         userId,
         amount,
         source,
         timestamp: Timestamp.now(),
-        metadata,
-      });
+      };
 
-      const result: any = { xpAwarded: amount, leveledUp };
+      // Only add metadata if it exists
+      if (metadata && Object.keys(metadata).length > 0) {
+        transactionData.metadata = metadata;
+      }
 
+      await setDoc(doc(collection(db, 'xpTransactions')), transactionData);
+
+      const result: any = {
+        xpAwarded: amount,
+        leveledUp,
+      };
+
+      // Handle level up
       if (leveledUp) {
         result.newLevel = newLevelData.level;
 
@@ -216,13 +238,16 @@ export class RewardService {
           }),
         });
 
+        // Award level up rewards
         const rewards = getLevelRewards(newLevelData.level);
         if (rewards.length > 0) await this.unlockLevelRewards(userId, newLevelData.level, rewards);
 
+        // Check for badges earned due to level milestone
         const badgesEarned = await this.checkBadgeProgress(userId);
         if (badgesEarned.length > 0) result.badgesEarned = badgesEarned;
       }
 
+      // Check for shield earned
       const streak = userData.streak || 0;
       const shields = userData.shields || [];
       const shieldEarned = checkShieldEarned(streak, shields);
@@ -231,7 +256,7 @@ export class RewardService {
         result.shieldEarned = shieldEarned;
         await updateDoc(userRef, { shields: arrayUnion(shieldEarned) });
       }
-      console.log(amount);
+      console.log(source + amount);
       return result;
     } catch (error) {
       console.error(`[RewardService.awardXP] Error for user ${userId}:`, error);
@@ -239,10 +264,12 @@ export class RewardService {
     }
   }
 
+  // Check and award badges
   static async checkBadgeProgress(userId: string): Promise<Badge[]> {
     try {
       const userRef = doc(db, 'users', userId);
       const userDoc = await getDoc(userRef);
+
       if (!userDoc.exists()) return [];
 
       const userData = userDoc.data();
@@ -250,17 +277,24 @@ export class RewardService {
       const currentBadgeIds = (userData.badges || []).map((b: any) => b.id);
 
       for (const badge of BADGES) {
+        // Skip if already earned
         if (currentBadgeIds.includes(badge.id)) continue;
 
+        // Check if requirements are met
         const meetsRequirement = await this.checkBadgeRequirement(badge, userData);
+
         if (meetsRequirement) {
           earnedBadges.push(badge);
 
+          // Award badge
           await updateDoc(userRef, {
             badges: arrayUnion({ ...badge, unlockedAt: Timestamp.now() }),
           });
 
+          // Award badge XP
           await this.awardXP(userId, badge.xpReward, `badge:${badge.id}`);
+
+          // Log badge earned
           await setDoc(doc(collection(db, 'badgeEvents')), {
             userId,
             badgeId: badge.id,
@@ -276,53 +310,63 @@ export class RewardService {
     }
   }
 
+  // Check if badge requirement is met
   private static async checkBadgeRequirement(badge: Badge, userData: any): Promise<boolean> {
     try {
       const { requirement } = badge;
+
       switch (requirement.type) {
         case 'streak':
           return (userData.streak || 0) >= requirement.value;
+
         case 'sessions_completed':
           return (userData.stats?.totalSessions || 0) >= requirement.value;
+
         case 'session_duration':
           return (userData.stats?.longestSession || 0) >= requirement.value;
+
         case 'sessions_per_day':
           return (userData.stats?.maxSessionsPerDay || 0) >= requirement.value;
+
         case 'resists':
           return (userData.stats?.totalResists || 0) >= requirement.value;
+
         case 'quests_completed':
           return (userData.stats?.questsCompleted || 0) >= requirement.value;
+
         case 'daily_quest_streak':
           return (userData.stats?.dailyQuestStreak || 0) >= requirement.value;
-        case 'evening_streak':
-          return (userData.streaks?.evening || 0) >= requirement.value;
-        case 'morning_streak':
-          return (userData.streaks?.morning || 0) >= requirement.value;
+
         case 'phone_free_meals':
           return (userData.stats?.phoneFreeMeals || 0) >= requirement.value;
+
         case 'phone_free_social':
           return (userData.stats?.phoneFreeSocial || 0) >= requirement.value;
+
         case 'phone_free_outdoor':
           return (userData.stats?.phoneFreeOutdoor || 0) >= requirement.value;
+
         case 'sleep_quality_streak':
           return (userData.stats?.sleepStreak || 0) >= requirement.value;
+
         case 'zero_screen_time':
           return userData.stats?.perfectDays >= requirement.value;
+
         case 'streak_recovery':
           return userData.stats?.comebackStreaks >= requirement.value;
+
         case 'quests_per_day':
           return (userData.stats?.maxQuestsPerDay || 0) >= requirement.value;
+
         case 'late_night_free':
           return (userData.stats?.lateNightFreeStreak || 0) >= requirement.value;
+
         case 'apps_deleted':
           return (userData.stats?.appsDeleted || 0) >= requirement.value;
+
         case 'community_help':
           return (userData.stats?.communityHelps || 0) >= requirement.value;
-        case 'multi_streak':
-          const morning = userData.streaks?.morning || 0;
-          const evening = userData.streaks?.evening || 0;
-          const meal = userData.streaks?.meal || 0;
-          return Math.min(morning, evening, meal) >= requirement.value;
+
         default:
           return false;
       }
@@ -346,9 +390,11 @@ export class RewardService {
 
       await updateDoc(questRef, { completed: true, completedAt: Timestamp.now() });
 
+      // Update user stats
       const userRef = doc(db, 'users', userId);
       await updateDoc(userRef, { 'stats.questsCompleted': increment(1) });
 
+      // Award XP
       const result = await this.awardXP(userId, quest.xpReward, `quest:${quest.difficulty}`, {
         questId,
         questTitle: quest.title,
@@ -416,6 +462,7 @@ export class RewardService {
       const shouldIncrement = await RewardService.isFirstSessionToday(userId);
       RewardService.updateStreak(userId, shouldIncrement);
 
+      // Update stats
       await updateDoc(userRef, {
         'stats.totalSessions': increment(1),
         'stats.totalMinutes': increment(durationMinutes),
@@ -436,6 +483,7 @@ export class RewardService {
         xpEarned: totalXP,
       });
 
+      // Award XP
       const result = await this.awardXP(userId, totalXP, 'focus_session', {
         duration: durationMinutes,
         mood: 'none',
