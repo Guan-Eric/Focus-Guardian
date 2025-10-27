@@ -19,6 +19,7 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../../../firebase';
 import { getLevelFromXP } from '../../../utils/levelingSystem';
 import { RewardService } from '../../../services/rewardSystem';
+import { Badge } from '../../../types/rewards';
 
 type MoodRating = 'hard' | 'okay' | 'good' | 'amazing';
 
@@ -27,15 +28,16 @@ export default function SessionComplete() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
   const user = auth.currentUser;
-  const { duration, xpEarned } = useLocalSearchParams<{
+  const { duration } = useLocalSearchParams<{
     duration: string;
-    xpEarned: string;
   }>();
 
   const [selectedMood, setSelectedMood] = useState<MoodRating | 'none'>('none');
   const [sessionSaved, setSessionSaved] = useState(false);
   const [moodUpdating, setMoodUpdating] = useState(false);
-
+  const [sessionId, setSessionId] = useState<string>('');
+  const [xpEarned, setXpEarned] = useState<number>(0);
+  const [badgesEarned, setBadgesEarned] = useState<Badge[]>([]);
   // Animation values
   const celebrationScale = useSharedValue(0);
   const xpScale = useSharedValue(0);
@@ -83,7 +85,13 @@ export default function SessionComplete() {
 
       try {
         // Save session without mood initially
-        await RewardService.recordSession(user.uid, Number(duration), 'none');
+        const { xpAwarded, badgesEarned, sessionId } = await RewardService.recordSession(
+          user.uid,
+          Number(duration)
+        );
+        setXpEarned(xpAwarded);
+        setSessionId(sessionId);
+        setBadgesEarned(badgesEarned);
         setSessionSaved(true);
 
         // Trigger haptic feedback
@@ -131,11 +139,7 @@ export default function SessionComplete() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     try {
-      // Update mood in the most recent session
-      // Note: You'll need to add an updateSessionMood method to RewardService
-      // For now, we'll just update local state
-      console.log('Mood selected:', mood);
-      // TODO: Implement mood update in RewardService
+      RewardService.updateSession(user.uid, sessionId, mood);
     } catch (error) {
       console.error('Error updating mood:', error);
     } finally {

@@ -15,6 +15,7 @@ import { doc, updateDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db } from '../../../firebase';
 import { AuthService } from '../../../services/authService';
 import { getLevelFromXP } from '../../../utils/levelingSystem';
+import * as Notifications from 'expo-notifications';
 import { UserData } from '../../../types/user';
 
 export default function ProfileScreen() {
@@ -73,29 +74,69 @@ export default function ProfileScreen() {
 
   const handleToggleNotifications = async (value: boolean) => {
     setNotifications(value);
-    if (user) {
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          'settings.notifications': value,
-        });
-      } catch (error) {
-        console.error('Error updating notifications:', error);
-        setNotifications(!value);
+
+    if (!user) return;
+
+    try {
+      console.log('Toggling notifications:', value);
+
+      // Check notification permissions
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
+
+      if (finalStatus !== 'granted') {
+        console.warn('Notification permissions not granted');
+        setNotifications(false);
+        return;
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        'settings.notifications': value,
+      });
+
+      console.log('Notifications setting updated successfully');
+    } catch (error) {
+      console.error('Error in handleToggleNotifications:', error);
+      setNotifications(!value);
     }
   };
 
   const handleToggleDailyCheckIn = async (value: boolean) => {
     setDailyCheckIn(value);
-    if (user) {
-      try {
-        await updateDoc(doc(db, 'users', user.uid), {
-          'settings.dailyCheckIn': value,
-        });
-      } catch (error) {
-        console.error('Error updating daily check-in:', error);
-        setDailyCheckIn(!value);
+
+    if (!user) return;
+
+    try {
+      console.log('Toggling daily check-in:', value);
+
+      // Check notification permissions (same flow)
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
       }
+
+      if (finalStatus !== 'granted') {
+        console.warn('Notification permissions not granted for daily check-in');
+        setDailyCheckIn(false);
+        return;
+      }
+
+      await updateDoc(doc(db, 'users', user.uid), {
+        'settings.dailyCheckIn': value,
+      });
+
+      console.log('Daily check-in setting updated successfully');
+    } catch (error) {
+      console.error('Error in handleToggleDailyCheckIn:', error);
+      setDailyCheckIn(!value);
     }
   };
 
@@ -265,7 +306,7 @@ export default function ProfileScreen() {
             </View>
             <View className="flex-1">
               <Text className="mb-1 text-sm font-bold text-slate-900">Push Notifications</Text>
-              <Text className="text-xs text-slate-600">Daily reminders and updates</Text>
+              <Text className="text-xs text-slate-600">Announcements and updates</Text>
             </View>
             <Switch
               value={notifications}

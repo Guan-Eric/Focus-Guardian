@@ -35,7 +35,7 @@ export default function NotificationsScreen() {
 
   const requestNotificationPermission = async () => {
     setRequesting(true);
-
+    const userId = auth.currentUser?.uid;
     try {
       const { status: existingStatus } = await Notifications.getPermissionsAsync();
       let finalStatus = existingStatus;
@@ -46,7 +46,16 @@ export default function NotificationsScreen() {
       }
 
       if (finalStatus === 'granted') {
-        // Navigate to next screen
+        if (userId) {
+          try {
+            await updateDoc(doc(db, 'users', userId), {
+              'settings.dailyCheckIn': true,
+              'settings.notifications': true,
+            });
+          } catch (error) {
+            console.error('Error updating notification:', error);
+          }
+        }
         await completeOnboarding();
       } else {
         Alert.alert('Notifications Disabled', 'You can enable them later in settings', [
