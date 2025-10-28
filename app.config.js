@@ -14,6 +14,7 @@ export default {
       backgroundColor: '#ffffff',
     },
     ios: {
+      bundleIdentifier: 'com.guaneric.lockin',
       supportsTablet: true,
     },
     android: {
@@ -36,6 +37,9 @@ export default {
       messagingSenderId: process.env.MESSAGING_SENDER_ID,
       appId: process.env.APP_ID,
       measurementId: process.env.MEASUREMENT_ID,
+      eas: {
+        projectId: 'c8fcdaab-670e-426e-bd69-a1cb2fa30204',
+      },
     },
     owner: 'guan-eric',
     experiments: {
