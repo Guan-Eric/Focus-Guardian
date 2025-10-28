@@ -7,8 +7,20 @@ import {
   EmailAuthProvider,
   updateProfile,
   signInWithCredential,
+  deleteUser,
 } from 'firebase/auth';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import {
+  doc,
+  setDoc,
+  getDoc,
+  serverTimestamp,
+  collection,
+  deleteDoc,
+  getDocs,
+  query,
+  where,
+  writeBatch,
+} from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { credential } from 'firebase-admin';
 
@@ -162,5 +174,185 @@ export class AuthService {
   // Listen to auth state changes
   static onAuthStateChange(callback: (user: User | null) => void) {
     return onAuthStateChanged(auth, callback);
+  }
+
+  static async deleteAccount(): Promise<void> {
+    const user = auth.currentUser;
+    if (!user) {
+      throw new Error('No user is currently signed in');
+    }
+
+    const userId = user.uid;
+
+    try {
+      console.log('[AuthService] Starting account deletion for user:', userId);
+
+      // Step 1: Delete all user sessions
+      await this.deleteUserSessions(userId);
+
+      // Step 2: Delete all XP transactions
+      await this.deleteUserXPTransactions(userId);
+
+      // Step 3: Delete all badge events
+      await this.deleteUserBadgeEvents(userId);
+
+      // Step 4: Delete user quests (if they exist as subcollection)
+      await this.deleteUserQuests(userId);
+
+      // Step 5: Delete the main user document
+      const userRef = doc(db, 'users', userId);
+      await deleteDoc(userRef);
+      console.log('[AuthService] User document deleted');
+
+      // Step 6: Delete Firebase Auth account
+      await deleteUser(user);
+      console.log('[AuthService] Firebase Auth account deleted');
+
+      console.log('[AuthService] Account deletion completed successfully');
+    } catch (error: any) {
+      console.error('[AuthService] Error deleting account:', error);
+
+      // Provide more specific error messages
+      if (error.code === 'auth/requires-recent-login') {
+        throw new Error(
+          'For security reasons, please sign out and sign back in before deleting your account.'
+        );
+      }
+
+      throw new Error(error.message || 'Failed to delete account');
+    }
+  }
+
+  /**
+   * Delete all sessions for a user
+   */
+  private static async deleteUserSessions(userId: string): Promise<void> {
+    try {
+      const sessionsRef = collection(db, 'sessions');
+      const q = query(sessionsRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log('[AuthService] No sessions to delete');
+        return;
+      }
+
+      // Use batch delete for efficiency (max 500 operations per batch)
+      const batch = writeBatch(db);
+      let operationCount = 0;
+      const batches: any[] = [batch];
+
+      snapshot.forEach((doc) => {
+        if (operationCount >= 500) {
+          batches.push(writeBatch(db));
+          operationCount = 0;
+        }
+        batches[batches.length - 1].delete(doc.ref);
+        operationCount++;
+      });
+
+      // Commit all batches
+      await Promise.all(batches.map((b) => b.commit()));
+      console.log(`[AuthService] Deleted ${snapshot.size} sessions`);
+    } catch (error) {
+      console.error('[AuthService] Error deleting sessions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all XP transactions for a user
+   */
+  private static async deleteUserXPTransactions(userId: string): Promise<void> {
+    try {
+      const transactionsRef = collection(db, 'xpTransactions');
+      const q = query(transactionsRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log('[AuthService] No XP transactions to delete');
+        return;
+      }
+
+      const batch = writeBatch(db);
+      let operationCount = 0;
+      const batches: any[] = [batch];
+
+      snapshot.forEach((doc) => {
+        if (operationCount >= 500) {
+          batches.push(writeBatch(db));
+          operationCount = 0;
+        }
+        batches[batches.length - 1].delete(doc.ref);
+        operationCount++;
+      });
+
+      await Promise.all(batches.map((b) => b.commit()));
+      console.log(`[AuthService] Deleted ${snapshot.size} XP transactions`);
+    } catch (error) {
+      console.error('[AuthService] Error deleting XP transactions:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all badge events for a user
+   */
+  private static async deleteUserBadgeEvents(userId: string): Promise<void> {
+    try {
+      const badgeEventsRef = collection(db, 'badgeEvents');
+      const q = query(badgeEventsRef, where('userId', '==', userId));
+      const snapshot = await getDocs(q);
+
+      if (snapshot.empty) {
+        console.log('[AuthService] No badge events to delete');
+        return;
+      }
+
+      const batch = writeBatch(db);
+      let operationCount = 0;
+      const batches: any[] = [batch];
+
+      snapshot.forEach((doc) => {
+        if (operationCount >= 500) {
+          batches.push(writeBatch(db));
+          operationCount = 0;
+        }
+        batches[batches.length - 1].delete(doc.ref);
+        operationCount++;
+      });
+
+      await Promise.all(batches.map((b) => b.commit()));
+      console.log(`[AuthService] Deleted ${snapshot.size} badge events`);
+    } catch (error) {
+      console.error('[AuthService] Error deleting badge events:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Delete all quests for a user (if stored as subcollection)
+   */
+  private static async deleteUserQuests(userId: string): Promise<void> {
+    try {
+      const questsRef = collection(db, 'users', userId, 'quests');
+      const snapshot = await getDocs(questsRef);
+
+      if (snapshot.empty) {
+        console.log('[AuthService] No quests to delete');
+        return;
+      }
+
+      const batch = writeBatch(db);
+      snapshot.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+
+      await batch.commit();
+      console.log(`[AuthService] Deleted ${snapshot.size} quests`);
+    } catch (error) {
+      console.error('[AuthService] Error deleting quests:', error);
+      // Don't throw - quests might not exist for all users
+    }
   }
 }

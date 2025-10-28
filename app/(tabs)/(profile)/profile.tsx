@@ -1,4 +1,4 @@
-// app/(tabs)/profile.tsx - No Context Version
+// app/(tabs)/profile.tsx - Complete with Links
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -8,6 +8,9 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Linking,
+  Share,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -16,6 +19,7 @@ import { auth, db } from '../../../firebase';
 import { AuthService } from '../../../services/authService';
 import { getLevelFromXP } from '../../../utils/levelingSystem';
 import * as Notifications from 'expo-notifications';
+import * as StoreReview from 'expo-store-review';
 import { UserData } from '../../../types/user';
 
 export default function ProfileScreen() {
@@ -140,20 +144,33 @@ export default function ProfileScreen() {
     }
   };
 
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+  const handleDeleteAccount = () => {
+    Alert.alert('Delete Account', 'Are you sure you want to delete your account?', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Sign Out',
+        text: 'Delete',
         style: 'destructive',
-        onPress: async () => {
-          try {
-            await AuthService.signOut();
-            // index.tsx will handle navigation
-          } catch (error) {
-            console.error('Sign out error:', error);
-            Alert.alert('Error', 'Failed to sign out. Please try again.');
-          }
+        onPress: () => {
+          Alert.alert(
+            'Final Confirmation',
+            'This action is permanent. Do you really want to delete your account?',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              {
+                text: 'Delete Forever',
+                style: 'destructive',
+                onPress: async () => {
+                  try {
+                    await AuthService.deleteAccount();
+                    AuthService.signOut();
+                  } catch (error) {
+                    console.error('Delete Account error:', error);
+                    Alert.alert('Error', 'Failed to delete account. Please try again.');
+                  }
+                },
+              },
+            ]
+          );
         },
       },
     ]);
@@ -198,6 +215,100 @@ export default function ProfileScreen() {
       ],
       'plain-text'
     );
+  };
+
+  const handleHelpSupport = () => {
+    Alert.alert(
+      'Help & Support',
+      'Need help? Contact us:',
+      [
+        {
+          text: 'Email Support',
+          onPress: () => {
+            Linking.openURL('mailto:erictheguan@gmail.com?subject=Lock%20In%20App%20Support');
+          },
+        },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const handlePrivacyPolicy = async () => {
+    const url = 'https://lock-in-waitlist.vercel.app/privacy-policy.html';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open link');
+      }
+    } catch (error) {
+      console.error('Error opening privacy policy:', error);
+      Alert.alert('Error', 'Failed to open privacy policy');
+    }
+  };
+
+  const handleTermsOfService = async () => {
+    const url = 'https://lock-in-waitlist.vercel.app/terms-and-conditions.html';
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', 'Unable to open link');
+      }
+    } catch (error) {
+      console.error('Error opening terms:', error);
+      Alert.alert('Error', 'Failed to open terms of service');
+    }
+  };
+
+  const handleRateApp = async () => {
+    try {
+      const isAvailable = await StoreReview.isAvailableAsync();
+
+      if (isAvailable) {
+        await StoreReview.requestReview();
+      } else {
+        // Fallback to store URL
+        const storeUrl = Platform.select({
+          ios: 'https://apps.apple.com/app/id6754581529', // Replace with your App Store ID
+          android: 'https://play.google.com/store/apps/details?id=com.yourcompany.lockin', // Replace with your package name
+        });
+
+        if (storeUrl) {
+          await Linking.openURL(storeUrl);
+        } else {
+          Alert.alert('Coming Soon', 'Rating feature will be available once the app is published');
+        }
+      }
+    } catch (error) {
+      console.error('Error requesting review:', error);
+      Alert.alert('Error', 'Unable to open rating dialog');
+    }
+  };
+
+  const handleShareApp = async () => {
+    try {
+      const message =
+        Platform.select({
+          ios: 'Check out Lock In - the best app to reduce screen time and stay focused! 🎯',
+          android: 'Check out Lock In - the best app to reduce screen time and stay focused! 🎯',
+        }) || 'Check out Lock In!';
+
+      const url = Platform.select({
+        ios: 'https://apps.apple.com/app/id6754581529', // Replace with your App Store ID
+        android: 'https://play.google.com/store/apps/details?id=com.yourcompany.lockin', // Replace with your package name
+      });
+
+      await Share.share({
+        message: url ? `${message}\n\n${url}` : message,
+        title: 'Share Lock In App',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
   };
 
   if (loading || !userData || !user) {
@@ -256,7 +367,7 @@ export default function ProfileScreen() {
           </LinearGradient>
         </View>
 
-        {/* Anonymous Account Warning 
+        {/* Anonymous Account Warning
         {user.isAnonymous && (
           <View className="mx-6 mb-6">
             <TouchableOpacity
@@ -335,7 +446,7 @@ export default function ProfileScreen() {
             />
           </View>
 
-          {/* Account */}
+          {/* Account 
           <TouchableOpacity
             onPress={() => router.push('/(tabs)/(profile)/account')}
             className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
@@ -347,10 +458,10 @@ export default function ProfileScreen() {
               <Text className="text-xs text-slate-600">Manage your Account</Text>
             </View>
             <Text className="text-lg text-slate-400">›</Text>
-          </TouchableOpacity>
+          </TouchableOpacity>*/}
         </View>
 
-        {/* Premium Section 
+        {/* Premium Section - Commented out
         <View className="mb-4 px-6">
           <TouchableOpacity onPress={() => router.push('/paywall')} activeOpacity={0.9}>
             <LinearGradient
@@ -375,27 +486,37 @@ export default function ProfileScreen() {
         <View className="mb-4 px-6">
           <Text className="mb-3 text-base font-bold text-slate-900">More</Text>
 
-          <TouchableOpacity className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+          <TouchableOpacity
+            onPress={handleHelpSupport}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <Text className="flex-1 text-sm text-slate-900">Help & Support</Text>
             <Text className="text-lg text-slate-400">›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+          <TouchableOpacity
+            onPress={handlePrivacyPolicy}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <Text className="flex-1 text-sm text-slate-900">Privacy Policy</Text>
             <Text className="text-lg text-slate-400">›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+          <TouchableOpacity
+            onPress={handleTermsOfService}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <Text className="flex-1 text-sm text-slate-900">Terms of Service</Text>
             <Text className="text-lg text-slate-400">›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+          <TouchableOpacity
+            onPress={handleRateApp}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <Text className="flex-1 text-sm text-slate-900">Rate Lock In</Text>
             <Text className="text-lg text-slate-400">›</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
+          <TouchableOpacity
+            onPress={handleShareApp}
+            className="mb-3 flex-row items-center rounded-2xl bg-slate-50 p-4">
             <Text className="flex-1 text-sm text-slate-900">Share with Friends</Text>
             <Text className="text-lg text-slate-400">›</Text>
           </TouchableOpacity>
@@ -409,12 +530,12 @@ export default function ProfileScreen() {
           </Text>
         </View>
 
-        {/*Sign Out 
+        {/* Delete Account */}
         <View className="mb-24 px-6">
-          <TouchableOpacity onPress={handleSignOut} className="rounded-2xl bg-slate-100 p-4">
-            <Text className="text-center text-sm font-bold text-slate-900">Sign Out</Text>
+          <TouchableOpacity onPress={handleDeleteAccount} className="rounded-2xl bg-slate-100 p-4">
+            <Text className="text-center text-sm font-bold text-slate-900">Delete Account</Text>
           </TouchableOpacity>
-        </View> */}
+        </View>
       </ScrollView>
     </View>
   );
