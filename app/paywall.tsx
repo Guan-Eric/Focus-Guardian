@@ -13,6 +13,7 @@ import Purchases, { PurchasesOffering } from 'react-native-purchases';
 import { completeOnboarding } from '../utils/onboarding';
 import { auth } from '../firebase';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 
 export default function PaywallScreen() {
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
@@ -43,11 +44,14 @@ export default function PaywallScreen() {
     setPurchasing(true);
     try {
       // Assuming 'weekly' maps to weekly and 'annual' maps to annual package in RevenueCat dashboard.
-      const packageToPurchase = selectedPackage === 'weekly' ? offering.weekly : offering.annual;
+      const packageToPurchase =
+        selectedPackage === 'weekly'
+          ? offering?.availablePackages.find((p) => p.packageType === 'WEEKLY')
+          : offering?.availablePackages.find((p) => p.packageType === 'ANNUAL');
       if (packageToPurchase) {
         const { customerInfo } = await Purchases.purchasePackage(packageToPurchase);
 
-        if (customerInfo.entitlements.active['premium']) {
+        if (customerInfo.entitlements.active['Pro']) {
           // User is now premium
           completeOnboarding(auth.currentUser?.uid as string);
         }
@@ -69,6 +73,9 @@ export default function PaywallScreen() {
     { icon: '🎯', title: 'Custom Challenges', description: 'Create your own daily quests' },
     { icon: '🔔', title: 'Smart Reminders', description: 'AI-powered notification timing' },
   ];
+
+  const weeklyPackage = offering?.availablePackages.find((p) => p.packageType === 'WEEKLY');
+  const annualPackage = offering?.availablePackages.find((p) => p.packageType === 'ANNUAL');
 
   if (loading) {
     return (
@@ -147,7 +154,7 @@ export default function PaywallScreen() {
                     className={`text-2xl font-bold ${
                       selectedPackage === 'annual' ? 'text-primary-600' : 'text-slate-900'
                     }`}>
-                    $24.99
+                    {annualPackage?.product.priceString ?? '$24.99'}
                   </Text>
                   <Text className="text-xs text-slate-500">per year</Text>
                 </View>
@@ -186,7 +193,7 @@ export default function PaywallScreen() {
                     className={`text-2xl font-bold ${
                       selectedPackage === 'weekly' ? 'text-primary-600' : 'text-slate-900'
                     }`}>
-                    $3.99
+                    {weeklyPackage?.product.priceString ?? '$3.99'}
                   </Text>
                   <Text className="text-xs text-slate-500">per week</Text>
                 </View>
@@ -216,9 +223,9 @@ export default function PaywallScreen() {
           <View className="px-6">
             <Text className="text-center text-xs leading-5 text-slate-400">
               3-day free trial on weekly plan. Subscription renews automatically. Cancel anytime
-              from your account settings. By subscribing, you agree to our{' '}
-              <Text className="text-primary-500 underline">Terms of Service</Text> and{' '}
-              <Text className="text-primary-500 underline">Privacy Policy</Text>.
+              from your account settings. By subscribing, you agree to our
+              <Text className="text-primary-500 underline"> Terms of Service</Text> and
+              <Text className="text-primary-500 underline"> Privacy Policy</Text>.
             </Text>
           </View>
         </ScrollView>

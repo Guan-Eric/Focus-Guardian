@@ -37,6 +37,7 @@ export default {
       messagingSenderId: process.env.MESSAGING_SENDER_ID,
       appId: process.env.APP_ID,
       measurementId: process.env.MEASUREMENT_ID,
+      revenueCatIos: process.env.REVENUE_CAT_IOS,
       eas: {
         projectId: 'c8fcdaab-670e-426e-bd69-a1cb2fa30204',
       },

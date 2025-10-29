@@ -304,9 +304,9 @@ export default function StatsScreen() {
           <View className="mb-6 px-6">
             <View className="mb-3 flex-row items-center justify-between">
               <Text className="text-base font-bold text-slate-900">Recent Achievements</Text>
-              <TouchableOpacity>
+              {/* <TouchableOpacity>
                 <Text className="text-sm font-bold text-primary-500">View All</Text>
-              </TouchableOpacity>
+              </TouchableOpacity> */}
             </View>
 
             {userData?.badges && userData.badges.length > 0 ? (

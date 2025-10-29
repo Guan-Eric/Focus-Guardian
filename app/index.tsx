@@ -5,12 +5,19 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { auth, db } from '../firebase';
+import Purchases from 'react-native-purchases';
+import Constants from 'expo-constants';
 
 function Index() {
   const [loading, setLoading] = useState(true);
-  // Single auth listener for routing only
-  const unsubscribe = async () => {
-    onAuthStateChanged(auth, async (user) => {
+
+  useEffect(() => {
+    // Configure RevenueCat once at startup
+    Purchases.configure({ apiKey: Constants.expoConfig?.extra?.revenueCatIos });
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       try {
         if (!user) {
           // No user - navigate after interactions complete
@@ -25,24 +32,37 @@ function Index() {
         const userRef = doc(db, 'users', user.uid);
         const userDoc = await getDoc(userRef);
 
-        if (userDoc.exists()) {
-          const userData = userDoc.data();
-
-          InteractionManager.runAfterInteractions(() => {
-            if (userData.onboardingCompleted) {
-              router.replace('/(tabs)/(home)/home');
-            } else {
-              router.replace('/set-goal');
-            }
-            setLoading(false);
-          });
-        } else {
-          // No document - go to onboarding
+        if (!userDoc.exists()) {
           InteractionManager.runAfterInteractions(() => {
             router.replace('/set-goal');
             setLoading(false);
           });
+          return;
         }
+
+        const userData = userDoc.data();
+
+        // If onboarding not complete → go to onboarding
+        if (!userData.onboardingCompleted) {
+          InteractionManager.runAfterInteractions(() => {
+            router.replace('/set-goal');
+            setLoading(false);
+          });
+          return;
+        }
+
+        // ✅ Check subscription via RevenueCat
+        const customerInfo = await Purchases.getCustomerInfo();
+        const hasPro = !!customerInfo.entitlements.active['Pro'];
+
+        InteractionManager.runAfterInteractions(() => {
+          if (hasPro) {
+            router.replace('/(tabs)/(home)/home');
+          } else {
+            router.replace('/paywall');
+          }
+          setLoading(false);
+        });
       } catch (error) {
         console.error('Error in auth check:', error);
         InteractionManager.runAfterInteractions(() => {
@@ -51,12 +71,9 @@ function Index() {
         });
       }
     });
-  };
-  useEffect(() => {
-    const fetchData = async () => {
-      await unsubscribe();
-    };
-    fetchData();
+
+    // Cleanup listener
+    return () => unsubscribe();
   }, []);
 
   if (loading) {
